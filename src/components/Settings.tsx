@@ -32,6 +32,13 @@ export function Settings() {
     chrome.storage.sync.set({ autoSyncEnabled: autoSyncEnabled, autoSyncIntervalMinutes: val });
   };
 
+  useEffect(() => {
+    if (!settings) {
+      getSettings().catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!settings) {
     return (
       <div className="bg-white border border-slate-200 rounded-lg p-8 flex flex-col items-center gap-3 text-center">
@@ -41,16 +48,20 @@ export function Settings() {
             <p className="text-xs text-slate-500 max-w-xs">{error}</p>
           </>
         ) : (
-          <p className="text-xs text-slate-400">Settings not loaded</p>
+          <p className="text-xs text-slate-400">Loading settings…</p>
         )}
-        <button
-          onClick={() => getSettings().catch(() => {})}
-          disabled={isLoading}
-          className="flex items-center gap-1.5 text-xs text-[#1a73e8] hover:text-blue-700 transition-colors cursor-pointer disabled:opacity-50"
-        >
-          <RefreshCw className={`w-3 h-3 ${isLoading ? 'motion-safe:animate-spin' : ''}`} aria-hidden="true" />
-          {isLoading ? 'Loading…' : 'Try again'}
-        </button>
+        {!isLoading && (
+          <button
+            onClick={() => getSettings().catch(() => {})}
+            className="flex items-center gap-1.5 text-xs text-[#1a73e8] hover:text-blue-700 transition-colors cursor-pointer"
+          >
+            <RefreshCw className="w-3 h-3" aria-hidden="true" />
+            Try again
+          </button>
+        )}
+        {isLoading && (
+          <RefreshCw className="w-3.5 h-3.5 text-slate-400 motion-safe:animate-spin" aria-hidden="true" />
+        )}
       </div>
     );
   }

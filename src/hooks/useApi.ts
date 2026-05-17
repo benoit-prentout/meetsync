@@ -8,7 +8,6 @@ export function useApi() {
   const getStatus = useCallback(async () => {
     if (!accessToken) throw new Error('Not authenticated');
     setLoading(true);
-    setError(null);
 
     try {
       const response = await api.getStatus(accessToken);
@@ -50,6 +49,8 @@ export function useApi() {
 
   const getSettings = useCallback(async () => {
     if (!accessToken) throw new Error('Not authenticated');
+    setLoading(true);
+    setError(null);
 
     try {
       const response = await api.getSettings(accessToken);
@@ -58,8 +59,10 @@ export function useApi() {
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to get settings');
       throw error;
+    } finally {
+      setLoading(false);
     }
-  }, [accessToken, setSettings, setError]);
+  }, [accessToken, setLoading, setSettings, setError]);
 
   const sync = useCallback(async () => {
     if (!accessToken) throw new Error('Not authenticated');
