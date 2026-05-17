@@ -41,34 +41,8 @@ export function Settings() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!settings) {
-    return (
-      <div className="bg-white border border-slate-200 rounded-lg p-8 flex flex-col items-center gap-3 text-center">
-        {error ? (
-          <>
-            <p className="text-xs font-semibold text-red-600">Failed to load settings</p>
-            <p className="text-xs text-slate-500 max-w-xs">{error}</p>
-          </>
-        ) : (
-          <p className="text-xs text-slate-400">Loading settings…</p>
-        )}
-        {!isLoading && (
-          <button
-            onClick={() => getSettings().catch(() => {})}
-            className="flex items-center gap-1.5 text-xs text-[#1a73e8] hover:text-blue-700 transition-colors cursor-pointer"
-          >
-            <RefreshCw className="w-3 h-3" aria-hidden="true" />
-            Try again
-          </button>
-        )}
-        {isLoading && (
-          <RefreshCw className="w-3.5 h-3.5 text-slate-400 motion-safe:animate-spin" aria-hidden="true" />
-        )}
-      </div>
-    );
-  }
-
   const handleSave = async () => {
+    if (!settings) return;
     setSaving(true);
     setError(null);
     try {
@@ -92,7 +66,7 @@ export function Settings() {
 
   return (
     <div className="grid gap-6">
-      {/* Apps Script Deployment */}
+      {/* Apps Script Deployment — always visible so it's accessible even when settings fail */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
         <p className="text-sm font-semibold text-slate-900 mb-1">Apps Script Deployment</p>
         <p className="text-xs text-slate-400 mb-3">The URL of your deployed Apps Script web app.</p>
@@ -119,6 +93,33 @@ export function Settings() {
           )}
         </div>
       </div>
+
+      {!settings && (
+        <div className="bg-white border border-slate-200 rounded-lg p-8 flex flex-col items-center gap-3 text-center">
+          {error ? (
+            <>
+              <p className="text-xs font-semibold text-red-600">Failed to load settings</p>
+              <p className="text-xs text-slate-500 max-w-xs">{error}</p>
+            </>
+          ) : (
+            <p className="text-xs text-slate-400">Loading settings…</p>
+          )}
+          {!isLoading && (
+            <button
+              onClick={() => getSettings().catch(() => {})}
+              className="flex items-center gap-1.5 text-xs text-[#1a73e8] hover:text-blue-700 transition-colors cursor-pointer"
+            >
+              <RefreshCw className="w-3 h-3" aria-hidden="true" />
+              Try again
+            </button>
+          )}
+          {isLoading && (
+            <RefreshCw className="w-3.5 h-3.5 text-slate-400 motion-safe:animate-spin" aria-hidden="true" />
+          )}
+        </div>
+      )}
+
+      {settings && (<>
 
       {/* Google Drive Configuration */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
@@ -291,6 +292,8 @@ export function Settings() {
           {saving ? 'Saving...' : 'Save Settings'}
         </Button>
       </div>
+
+      </>)}
     </div>
   );
 }

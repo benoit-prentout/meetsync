@@ -22,11 +22,16 @@ import { formatLastSync } from '@/lib/format';
 
 type Tab = 'overview' | 'history' | 'analytics' | 'files' | 'settings' | 'help';
 
-export function Dashboard() {
+export function Dashboard({ onSignOut }: { onSignOut?: () => void }) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [syncResult, setSyncResult] = useState<{ filesProcessed: number } | null>(null);
   const [archiveDone, setArchiveDone] = useState(false);
   const { signOut } = useAuth();
+
+  const handleSignOut = () => {
+    onSignOut?.();
+    signOut();
+  };
   const { sync, archive } = useApi();
   const { lastSync, docSize, files, history, isLoading, settings, error } = useSettingsStore();
 
@@ -92,7 +97,7 @@ export function Dashboard() {
               {lastEvent.status === 'success' ? 'Synced' : lastEvent.status === 'error' ? 'Error' : 'Partial'}
             </span>
           )}
-          <button onClick={signOut} className="text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+          <button onClick={handleSignOut} className="text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
             Sign out
           </button>
         </div>
