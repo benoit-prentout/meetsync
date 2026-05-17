@@ -8,7 +8,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 function App() {
   const { isAuthenticated } = useAuth();
   const { getStatus, getHistory, getFiles, getSettings } = useApi();
-  const { setDeploymentUrl } = useSettingsStore();
+  const { setDeploymentUrl, setAuthenticated } = useSettingsStore();
   const [storageChecked, setStorageChecked] = useState(false);
   const [hasDeploymentUrl, setHasDeploymentUrl] = useState(false);
 
@@ -24,6 +24,18 @@ function App() {
     });
     return () => { isMounted = false; };
   }, [setDeploymentUrl]);
+
+  // Silently restore auth token from Chrome's cache on every page load.
+  // isAuthenticated is not persisted in Zustand, so without this, API calls
+  // never fire on fresh dashboard loads (accessToken stays null → "Not authenticated").
+  useEffect(() => {
+    if (isAuthenticated) return;
+    chrome.identity.getAuthToken({ interactive: false }, (token) => {
+      if (chrome.runtime.lastError || !token) return;
+      setAuthenticated(token);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
