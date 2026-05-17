@@ -7,7 +7,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 
 function App() {
   const { isAuthenticated } = useAuth();
-  const { getStatus, getHistory, getFiles } = useApi();
+  const { getStatus, getHistory, getFiles, getSettings } = useApi();
   const { setDeploymentUrl } = useSettingsStore();
   const [storageChecked, setStorageChecked] = useState(false);
   const [hasDeploymentUrl, setHasDeploymentUrl] = useState(false);
@@ -30,6 +30,7 @@ function App() {
       getStatus().catch(console.error);
       getHistory().catch(console.error);
       getFiles().catch(console.error);
+      getSettings().catch(console.error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);

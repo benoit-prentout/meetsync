@@ -82,6 +82,8 @@ export const useSettingsStore = create<SettingsState>()(
         settings: state.settings,
         lastSync: state.lastSync,
         docSize: state.docSize,
+        history: state.history,
+        files: state.files,
       }),
     }
   )

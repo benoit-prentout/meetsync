@@ -1,25 +1,42 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
+import { ExternalLink, Save } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useApi } from '@/hooks/useApi';
-import { Save } from 'lucide-react';
 
 export function Settings() {
   const { settings, updateSetting, setError } = useSettingsStore();
   const { updateSettings } = useApi();
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [autoSyncEnabled, setAutoSyncEnabledState] = useState(false);
+  const [autoSyncInterval, setAutoSyncIntervalState] = useState(60);
+
+  useEffect(() => {
+    chrome.storage.sync.get(['autoSyncEnabled', 'autoSyncIntervalMinutes'], (result) => {
+      if (result.autoSyncEnabled !== undefined) setAutoSyncEnabledState(Boolean(result.autoSyncEnabled));
+      if (result.autoSyncIntervalMinutes !== undefined) setAutoSyncIntervalState(Number(result.autoSyncIntervalMinutes));
+    });
+  }, []);
+
+  const setAutoSyncEnabled = (val: boolean) => {
+    setAutoSyncEnabledState(val);
+    chrome.storage.sync.set({ autoSyncEnabled: val, autoSyncIntervalMinutes: autoSyncInterval });
+  };
+
+  const setAutoSyncInterval = (val: number) => {
+    setAutoSyncIntervalState(val);
+    chrome.storage.sync.set({ autoSyncEnabled: autoSyncEnabled, autoSyncIntervalMinutes: val });
+  };
 
   if (!settings) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground">Settings not loaded</p>
-        </CardContent>
-      </Card>
+      <div className="bg-white border border-slate-200 rounded-lg p-8 text-center">
+        <p className="text-xs text-slate-400">Settings not loaded</p>
+      </div>
     );
   }
 
@@ -28,6 +45,8 @@ export function Settings() {
     setError(null);
     try {
       await updateSettings(settings);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save settings');
     } finally {
@@ -37,31 +56,51 @@ export function Settings() {
 
   return (
     <div className="grid gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Google Drive Configuration</CardTitle>
-          <CardDescription>
-            Configure your Google Drive folders and document IDs
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      {/* Google Drive Configuration */}
+      <div className="bg-white border border-slate-200 rounded-lg p-4">
+        <p className="text-xs font-semibold text-slate-900 mb-3">Google Drive Configuration</p>
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="masterDocId">Master Document ID</Label>
-            <Input
-              id="masterDocId"
-              value={settings.masterDocId || ''}
-              onChange={(e) => updateSetting('masterDocId', e.target.value)}
-              placeholder="Enter Google Doc ID"
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="masterDocId"
+                value={settings.masterDocId || ''}
+                onChange={(e) => updateSetting('masterDocId', e.target.value)}
+                placeholder="Enter Google Doc ID"
+              />
+              {settings.masterDocId && (
+                <button
+                  type="button"
+                  onClick={() => chrome.tabs.create({ url: `https://docs.google.com/document/d/${settings.masterDocId}` })}
+                  className="shrink-0 text-slate-400 hover:text-[#1a73e8] transition-colors"
+                  title="Open document"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="archiveFolderId">Archive Folder ID</Label>
-            <Input
-              id="archiveFolderId"
-              value={settings.archiveFolderId || ''}
-              onChange={(e) => updateSetting('archiveFolderId', e.target.value)}
-              placeholder="Enter Google Drive Folder ID"
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="archiveFolderId"
+                value={settings.archiveFolderId || ''}
+                onChange={(e) => updateSetting('archiveFolderId', e.target.value)}
+                placeholder="Enter Google Drive Folder ID"
+              />
+              {settings.archiveFolderId && (
+                <button
+                  type="button"
+                  onClick={() => chrome.tabs.create({ url: `https://drive.google.com/drive/folders/${settings.archiveFolderId}` })}
+                  className="shrink-0 text-slate-400 hover:text-[#1a73e8] transition-colors"
+                  title="Open folder"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="sourceFolderName">Source Folder Name</Label>
@@ -72,36 +111,22 @@ export function Settings() {
               placeholder="Meet Notes"
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Sync Settings</CardTitle>
-          <CardDescription>
-            Configure sync behavior and limits
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      {/* Sync Settings */}
+      <div className="bg-white border border-slate-200 rounded-lg p-4">
+        <p className="text-xs font-semibold text-slate-900 mb-3">Sync Settings</p>
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <div>
-              <Label>Enable Update Detection</Label>
-              <p className="text-sm text-muted-foreground">
-                Check for file modifications
-              </p>
-            </div>
+            <Label>Enable Update Detection</Label>
             <Switch
               checked={settings.enableUpdateDetection}
               onClick={() => updateSetting('enableUpdateDetection', !settings.enableUpdateDetection)}
             />
           </div>
           <div className="flex items-center justify-between">
-            <div>
-              <Label>Enable Monthly Archive</Label>
-              <p className="text-sm text-muted-foreground">
-                Automatically archive monthly
-              </p>
-            </div>
+            <Label>Enable Monthly Archive</Label>
             <Switch
               checked={settings.enableMonthlyArchive}
               onClick={() => updateSetting('enableMonthlyArchive', !settings.enableMonthlyArchive)}
@@ -129,11 +154,74 @@ export function Settings() {
                 }}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="archiveThresholdChars">Archive Threshold (chars)</Label>
+              <Input
+                id="archiveThresholdChars"
+                type="number"
+                value={settings.archiveThresholdChars}
+                onChange={(e) => updateSetting('archiveThresholdChars', parseInt(e.target.value, 10) || 800000)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="historySize">History Size</Label>
+              <Input
+                id="historySize"
+                type="number"
+                value={settings.historySize}
+                onChange={(e) => updateSetting('historySize', parseInt(e.target.value, 10) || 20)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="maxRetries">Max Retries</Label>
+              <Input
+                id="maxRetries"
+                type="number"
+                value={settings.maxRetries}
+                onChange={(e) => updateSetting('maxRetries', parseInt(e.target.value, 10) || 3)}
+              />
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="flex justify-end">
+      {/* Auto-Sync */}
+      <div className="bg-white border border-slate-200 rounded-lg p-4">
+        <p className="text-xs font-semibold text-slate-900 mb-3">Auto-Sync</p>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Enable Auto-Sync</Label>
+              <p className="text-[10px] text-slate-400 mt-0.5">Sync automatically in the background</p>
+            </div>
+            <Switch
+              checked={autoSyncEnabled}
+              onClick={() => setAutoSyncEnabled(!autoSyncEnabled)}
+            />
+          </div>
+          {autoSyncEnabled && (
+            <div className="space-y-2">
+              <Label htmlFor="autoSyncInterval">Interval</Label>
+              <select
+                id="autoSyncInterval"
+                value={autoSyncInterval}
+                onChange={(e) => setAutoSyncInterval(Number(e.target.value))}
+                className="w-full text-xs border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#1a73e8]"
+              >
+                <option value={15}>Every 15 minutes</option>
+                <option value={30}>Every 30 minutes</option>
+                <option value={60}>Every hour</option>
+                <option value={120}>Every 2 hours</option>
+                <option value={240}>Every 4 hours</option>
+                <option value={480}>Every 8 hours</option>
+              </select>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-3">
+        {saved && <span className="text-xs text-green-600">✓ Settings saved</span>}
         <Button onClick={handleSave} disabled={saving}>
           <Save className="w-4 h-4 mr-2" />
           {saving ? 'Saving...' : 'Save Settings'}

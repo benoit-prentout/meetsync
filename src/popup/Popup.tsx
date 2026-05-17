@@ -1,21 +1,16 @@
+import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApi } from '@/hooks/useApi';
 import { useSettingsStore } from '@/store/settingsStore';
+import { formatLastSync } from '@/lib/format';
 
 function openDashboardTab() {
   chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
 }
 
-function formatLastSync(lastSync: string | null): string {
-  if (!lastSync) return 'Never';
-  const diffHrs = Math.floor((Date.now() - new Date(lastSync).getTime()) / 3_600_000);
-  if (diffHrs < 1) return 'Just now';
-  if (diffHrs < 24) return `${diffHrs}h ago`;
-  return new Date(lastSync).toLocaleDateString();
-}
-
 export function Popup() {
+  const [syncResult, setSyncResult] = useState<{ filesProcessed: number } | null>(null);
   const { isAuthenticated, signIn, signOut } = useAuth();
   const { sync } = useApi();
   const { lastSync, docSize, files, history, isLoading, settings } = useSettingsStore();
@@ -51,9 +46,12 @@ export function Popup() {
     { label: 'Files', value: String(files.length) },
     {
       label: 'Status',
-      value: lastEvent?.status === 'success' ? 'Synced' : 'No syncs',
+      value: lastEvent?.status === 'success' ? 'Synced'
+           : lastEvent?.status === 'error'   ? 'Error'
+           : lastEvent?.status === 'partial' ? 'Partial'
+           : 'No syncs',
       isStatus: true,
-      success: lastEvent?.status === 'success',
+      statusType: lastEvent?.status ?? null,
     },
   ] as const;
 
@@ -77,8 +75,16 @@ export function Popup() {
             <span className="text-[9px] text-slate-400 uppercase tracking-wide">{card.label}</span>
             {'isStatus' in card && card.isStatus ? (
               <div className="flex items-center gap-1">
-                <div className={`w-1.5 h-1.5 rounded-full ${'success' in card && card.success ? 'bg-green-600' : 'bg-slate-300'}`} />
-                <span className={`text-[10px] font-semibold ${'success' in card && card.success ? 'text-green-600' : 'text-slate-500'}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${
+                  card.statusType === 'success' ? 'bg-green-600' :
+                  card.statusType === 'error'   ? 'bg-red-500' :
+                  card.statusType === 'partial' ? 'bg-amber-500' : 'bg-slate-300'
+                }`} />
+                <span className={`text-[10px] font-semibold ${
+                  card.statusType === 'success' ? 'text-green-600' :
+                  card.statusType === 'error'   ? 'text-red-500' :
+                  card.statusType === 'partial' ? 'text-amber-600' : 'text-slate-500'
+                }`}>
                   {card.value}
                 </span>
               </div>
@@ -92,13 +98,25 @@ export function Popup() {
       {/* Action buttons */}
       <div className="px-3 pb-3 flex flex-col gap-1.5">
         <button
-          onClick={sync}
+          onClick={async () => {
+            const result = await sync();
+            if (result) {
+              const count = (result.result as { filesProcessed?: number } | null)?.filesProcessed ?? 0;
+              setSyncResult({ filesProcessed: count });
+              setTimeout(() => setSyncResult(null), 3000);
+            }
+          }}
           disabled={isLoading || notConfigured}
           className="w-full bg-[#1a73e8] disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-md flex items-center justify-center gap-1.5"
         >
           <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
           Sync Now
         </button>
+        {syncResult !== null && (
+          <p className="text-[10px] text-green-600 text-center">
+            ✓ {syncResult.filesProcessed} file{syncResult.filesProcessed !== 1 ? 's' : ''} synced
+          </p>
+        )}
         <button
           onClick={openDashboardTab}
           className="w-full bg-white border border-slate-200 text-[#1a73e8] text-xs font-medium py-2 rounded-md"

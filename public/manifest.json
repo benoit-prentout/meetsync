@@ -3,7 +3,10 @@
   "name": "Meet Gemini to NotebookLM",
   "version": "1.0.0",
   "description": "Sync Google Meet notes to NotebookLM",
-  "permissions": ["identity", "identity.email", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["identity", "identity.email", "storage", "alarms"],
   "host_permissions": ["https://script.google.com/*"],
   "action": {
     "default_popup": "index.html",

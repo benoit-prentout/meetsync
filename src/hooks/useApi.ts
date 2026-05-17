@@ -3,7 +3,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { api } from '@/lib/api';
 
 export function useApi() {
-  const { accessToken, setLoading, setError, setStatus, setHistory, setFiles } = useSettingsStore();
+  const { accessToken, setLoading, setError, setStatus, setHistory, setFiles, setSettings } = useSettingsStore();
 
   const getStatus = useCallback(async () => {
     if (!accessToken) throw new Error('Not authenticated');
@@ -21,40 +21,6 @@ export function useApi() {
       setLoading(false);
     }
   }, [accessToken, setLoading, setError, setStatus]);
-
-  const sync = useCallback(async () => {
-    if (!accessToken) throw new Error('Not authenticated');
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await api.sync(accessToken);
-      await getStatus();
-      return response;
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Sync failed');
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken, setLoading, setError, getStatus]);
-
-  const archive = useCallback(async () => {
-    if (!accessToken) throw new Error('Not authenticated');
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await api.archive(accessToken);
-      await getStatus();
-      return response;
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Archive failed');
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken, setLoading, setError, getStatus]);
 
   const getHistory = useCallback(async () => {
     if (!accessToken) throw new Error('Not authenticated');
@@ -82,6 +48,53 @@ export function useApi() {
     }
   }, [accessToken, setFiles, setError]);
 
+  const getSettings = useCallback(async () => {
+    if (!accessToken) throw new Error('Not authenticated');
+
+    try {
+      const response = await api.getSettings(accessToken);
+      if (response.settings) setSettings(response.settings);
+      return response.settings;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to get settings');
+      throw error;
+    }
+  }, [accessToken, setSettings, setError]);
+
+  const sync = useCallback(async () => {
+    if (!accessToken) throw new Error('Not authenticated');
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await api.sync(accessToken);
+      await Promise.all([getStatus(), getHistory(), getFiles()]);
+      return response;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Sync failed');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [accessToken, setLoading, setError, getStatus, getHistory, getFiles]);
+
+  const archive = useCallback(async () => {
+    if (!accessToken) throw new Error('Not authenticated');
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await api.archive(accessToken);
+      await Promise.all([getStatus(), getHistory()]);
+      return response;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Archive failed');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [accessToken, setLoading, setError, getStatus, getHistory]);
+
   const updateSettings = useCallback(async (settings: Parameters<typeof api.updateSettings>[1]) => {
     if (!accessToken) throw new Error('Not authenticated');
     setLoading(true);
@@ -105,6 +118,7 @@ export function useApi() {
     archive,
     getHistory,
     getFiles,
+    getSettings,
     updateSettings,
   };
 }
