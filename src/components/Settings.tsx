@@ -3,13 +3,13 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
-import { ExternalLink, Save } from 'lucide-react';
+import { ExternalLink, Save, RefreshCw } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useApi } from '@/hooks/useApi';
 
 export function Settings() {
-  const { settings, updateSetting, setError } = useSettingsStore();
-  const { updateSettings } = useApi();
+  const { settings, updateSetting, setError, error, isLoading } = useSettingsStore();
+  const { updateSettings, getSettings } = useApi();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [autoSyncEnabled, setAutoSyncEnabledState] = useState(false);
@@ -34,8 +34,23 @@ export function Settings() {
 
   if (!settings) {
     return (
-      <div className="bg-white border border-slate-200 rounded-lg p-8 text-center">
-        <p className="text-xs text-slate-400">Settings not loaded</p>
+      <div className="bg-white border border-slate-200 rounded-lg p-8 flex flex-col items-center gap-3 text-center">
+        {error ? (
+          <>
+            <p className="text-xs font-semibold text-red-600">Failed to load settings</p>
+            <p className="text-xs text-slate-500 max-w-xs">{error}</p>
+          </>
+        ) : (
+          <p className="text-xs text-slate-400">Settings not loaded</p>
+        )}
+        <button
+          onClick={() => getSettings().catch(() => {})}
+          disabled={isLoading}
+          className="flex items-center gap-1.5 text-xs text-[#1a73e8] hover:text-blue-700 transition-colors cursor-pointer disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3 h-3 ${isLoading ? 'motion-safe:animate-spin' : ''}`} aria-hidden="true" />
+          {isLoading ? 'Loading…' : 'Try again'}
+        </button>
       </div>
     );
   }

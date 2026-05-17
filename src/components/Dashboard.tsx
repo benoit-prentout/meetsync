@@ -206,7 +206,7 @@ function OverviewPanel({ onSync, isLoading }: { onSync: () => Promise<void>; isL
           <CardTitle>Notifications</CardTitle>
         </CardHeader>
         <CardContent>
-          <Notifications compact />
+          <Notifications />
         </CardContent>
       </Card>
     </div>
