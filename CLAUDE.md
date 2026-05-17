@@ -63,6 +63,30 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 | `cleanGeminiText_()` | Strips Gemini metadata, markdown headers/bold, and excess whitespace |
 | `CONFIG` (top of file) | Controls `MAX_FILES_PER_RUN`, `ARCHIVE_THRESHOLD_CHARS`, `ENABLE_MONTHLY_ARCHIVE`, `MAX_AGE_DAYS` |
 
+## Dev Preview Workflow (preferred for UI iteration)
+
+Chrome extensions can't be navigated to directly (`chrome-extension://` URLs are blocked by tools). Instead, use the Vite dev server + Claude Preview MCP to iterate visually without rebuilding or reloading the extension:
+
+```bash
+npm run dev   # starts Vite dev server at http://localhost:5173
+```
+
+Then open `http://localhost:5173/dashboard.html` in Claude Preview. Changes hot-reload instantly.
+
+**How dev mode works:**
+- `src/dashboard/main.tsx` conditionally imports `src/dev-mocks.ts` when `import.meta.env.DEV` is true.
+- `src/dev-mocks.ts` stubs out `window.chrome` (storage, identity, tabs, runtime) and seeds the Zustand store with realistic fake data so all tabs render with content.
+- `src/dashboard/dev-main.tsx` is an alternate entry that renders `<Dashboard />` directly, bypassing the auth/setup flow entirely.
+- `dashboard-dev.html` points to `dev-main.tsx`; the main `dashboard.html` uses the conditional import path.
+- Dev mocks are tree-shaken out of production builds — they never appear in `dist/`.
+
+**Verification workflow for UI changes:**
+1. Start dev server with `preview_start` (name: `dashboard`)
+2. Screenshot with `preview_screenshot` to check layout
+3. Use `preview_eval` to click nav buttons: `document.querySelectorAll('nav button')[n].click()`
+4. Use `preview_inspect` to verify computed CSS properties (colors, dimensions)
+5. Use `preview_eval` to query DOM state (e.g. `data-state` attributes on toggles)
+
 ## Testing
 
 ```bash
@@ -81,3 +105,6 @@ npm test   # runs vitest (jsdom, globals: true)
 - `Session.getActiveUser().getEmail()` returns empty for some account types; `validateCaller_` logs a warning and returns false.
 - Email notifications via `MailApp` silently fail when quota is exceeded or on personal accounts.
 - Archive email failure is caught and logged but does not abort the archive.
+- **shadcn/ui CSS variables are not defined** in `src/index.css` — `--primary`, `--input`, `--background`, `--ring` etc. are all unset. Any shadcn component using these tokens (e.g. `bg-primary`, `bg-input`) will render transparent. Use explicit Tailwind classes instead (e.g. `bg-[#1a73e8]`, `bg-slate-200`, `bg-white`).
+- **`background.js` must land at the dist root**, not `dist/assets/`. Vite routes it there via `output.entryFileNames` callback in `vite.config.ts` — don't remove that logic.
+- **Auto-sync settings** (`autoSyncEnabled`, `autoSyncIntervalMinutes`) live in `chrome.storage.sync` directly, not in Zustand — the background service worker reads them at alarm time without access to the store.
