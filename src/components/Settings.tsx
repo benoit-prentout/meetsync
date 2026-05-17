@@ -58,7 +58,7 @@ export function Settings() {
     <div className="grid gap-6">
       {/* Google Drive Configuration */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
-        <p className="text-xs font-semibold text-slate-900 mb-3">Google Drive Configuration</p>
+        <p className="text-sm font-semibold text-slate-900 mb-3">Google Drive Configuration</p>
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="masterDocId">Master Document ID</Label>
@@ -73,10 +73,10 @@ export function Settings() {
                 <button
                   type="button"
                   onClick={() => chrome.tabs.create({ url: `https://docs.google.com/document/d/${settings.masterDocId}` })}
-                  className="shrink-0 text-slate-400 hover:text-[#1a73e8] transition-colors"
-                  title="Open document"
+                  className="shrink-0 text-slate-400 hover:text-[#1a73e8] transition-colors cursor-pointer"
+                  aria-label="Open master document"
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <ExternalLink className="w-4 h-4" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -94,10 +94,10 @@ export function Settings() {
                 <button
                   type="button"
                   onClick={() => chrome.tabs.create({ url: `https://drive.google.com/drive/folders/${settings.archiveFolderId}` })}
-                  className="shrink-0 text-slate-400 hover:text-[#1a73e8] transition-colors"
-                  title="Open folder"
+                  className="shrink-0 text-slate-400 hover:text-[#1a73e8] transition-colors cursor-pointer"
+                  aria-label="Open archive folder"
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <ExternalLink className="w-4 h-4" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -116,7 +116,7 @@ export function Settings() {
 
       {/* Sync Settings */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
-        <p className="text-xs font-semibold text-slate-900 mb-3">Sync Settings</p>
+        <p className="text-sm font-semibold text-slate-900 mb-3">Sync Settings</p>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <Label>Enable Update Detection</Label>
@@ -187,7 +187,7 @@ export function Settings() {
 
       {/* Auto-Sync */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
-        <p className="text-xs font-semibold text-slate-900 mb-3">Auto-Sync</p>
+        <p className="text-sm font-semibold text-slate-900 mb-3">Auto-Sync</p>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>

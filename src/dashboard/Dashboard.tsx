@@ -28,7 +28,7 @@ export function Dashboard() {
   const [archiveDone, setArchiveDone] = useState(false);
   const { signOut } = useAuth();
   const { sync, archive } = useApi();
-  const { lastSync, docSize, files, history, isLoading, settings } = useSettingsStore();
+  const { lastSync, docSize, files, history, isLoading, settings, error } = useSettingsStore();
 
   const notConfigured = !settings?.masterDocId || !settings?.archiveFolderId;
   const lastEvent = history[0];
@@ -43,7 +43,7 @@ export function Dashboard() {
 
   const STAT_CARDS: StatCard[] = [
     { label: 'Last Sync', value: formatLastSync(lastSync) },
-    { label: 'Doc Size', value: `${(docSize / 1024).toFixed(1)} KB`, isDocSize: true, sizeRatio },
+    { label: 'Doc Size', value: `${(docSize / 1024).toFixed(1)} / ${Math.round((settings?.archiveThresholdChars || 800_000) / 1024)} KB`, isDocSize: true, sizeRatio },
     { label: 'Files Synced', value: String(files.length) },
     {
       label: 'Status',
@@ -64,10 +64,10 @@ export function Dashboard() {
   ];
 
   const navItemClass = (id: Tab) =>
-    `flex items-center gap-2 px-4 py-1.5 text-xs text-left w-full transition-colors ${
+    `flex items-center gap-2 px-4 py-1.5 text-xs text-left w-full transition-colors cursor-pointer ${
       activeTab === id
         ? 'bg-blue-50 border-r-2 border-[#1a73e8] text-[#1a73e8] font-semibold'
-        : 'text-slate-500 hover:bg-slate-50'
+        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
     }`;
 
   return (
@@ -80,15 +80,19 @@ export function Dashboard() {
         <span className="font-semibold text-slate-900 text-sm">Meet → NotebookLM</span>
         <div className="ml-auto flex items-center gap-3">
           {lastEvent && (
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
               lastEvent.status === 'success' ? 'bg-green-50 text-green-700' :
               lastEvent.status === 'error'   ? 'bg-red-50 text-red-700' :
                                                'bg-amber-50 text-amber-700'
             }`}>
-              ● {lastEvent.status === 'success' ? 'Synced' : lastEvent.status === 'error' ? 'Error' : 'Partial'}
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                lastEvent.status === 'success' ? 'bg-green-500' :
+                lastEvent.status === 'error'   ? 'bg-red-500' : 'bg-amber-500'
+              }`} aria-hidden="true" />
+              {lastEvent.status === 'success' ? 'Synced' : lastEvent.status === 'error' ? 'Error' : 'Partial'}
             </span>
           )}
-          <button onClick={signOut} className="text-xs text-slate-400 hover:text-slate-600">
+          <button onClick={signOut} className="text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
             Sign out
           </button>
         </div>
@@ -98,18 +102,18 @@ export function Dashboard() {
         {/* Sidebar */}
         <nav className="w-40 bg-white border-r border-slate-200 flex flex-col py-3 shrink-0">
           {NAV_MAIN.map(({ id, label, Icon }) => (
-            <button key={id} onClick={() => setActiveTab(id)} className={navItemClass(id)}>
-              <Icon className="w-3.5 h-3.5" />
+            <button key={id} onClick={() => setActiveTab(id)} className={navItemClass(id)} aria-current={activeTab === id ? 'page' : undefined}>
+              <Icon className="w-3.5 h-3.5" aria-hidden="true" />
               {label}
             </button>
           ))}
           <div className="flex-1" />
-          <button onClick={() => setActiveTab('help')} className={navItemClass('help')}>
-            <HelpCircle className="w-3.5 h-3.5" />
+          <button onClick={() => setActiveTab('help')} className={navItemClass('help')} aria-current={activeTab === 'help' ? 'page' : undefined}>
+            <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
             Help
           </button>
-          <button onClick={() => setActiveTab('settings')} className={navItemClass('settings')}>
-            <SettingsIcon className="w-3.5 h-3.5" />
+          <button onClick={() => setActiveTab('settings')} className={navItemClass('settings')} aria-current={activeTab === 'settings' ? 'page' : undefined}>
+            <SettingsIcon className="w-3.5 h-3.5" aria-hidden="true" />
             Settings
           </button>
         </nav>
@@ -123,10 +127,15 @@ export function Dashboard() {
               </span>
               <button
                 onClick={() => setActiveTab('settings')}
-                className="text-xs font-semibold text-[#1a73e8] whitespace-nowrap"
+                className="text-xs font-semibold text-[#1a73e8] whitespace-nowrap cursor-pointer hover:text-blue-700 transition-colors"
               >
                 Go to Settings
               </button>
+            </div>
+          )}
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center gap-3">
+              <span className="text-red-700 text-xs flex-1">{error}</span>
             </div>
           )}
 
@@ -139,7 +148,7 @@ export function Dashboard() {
                     key={card.label}
                     className="bg-white border border-slate-200 rounded-lg p-3.5 h-[70px] flex flex-col justify-between relative overflow-hidden"
                   >
-                    <span className="text-[9px] text-slate-400 uppercase tracking-wide">{card.label}</span>
+                    <span className="text-[11px] text-slate-400 uppercase tracking-wide">{card.label}</span>
                     {'isStatus' in card && card.isStatus ? (
                       <div className="flex items-center gap-1.5">
                         <div className={`w-2 h-2 rounded-full ${
@@ -159,9 +168,9 @@ export function Dashboard() {
                       <span className="text-sm font-bold text-slate-900">{card.value}</span>
                     )}
                     {'isDocSize' in card && card.isDocSize && (
-                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-100">
+                      <div className="absolute bottom-2 left-3.5 right-3.5 h-1 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full transition-all"
+                          className="h-full rounded-full transition-all"
                           style={{ width: `${card.sizeRatio * 100}%`, backgroundColor: sizeBarColor }}
                         />
                       </div>
@@ -184,9 +193,9 @@ export function Dashboard() {
                       }
                     }}
                     disabled={isLoading || notConfigured}
-                    className="bg-[#1a73e8] disabled:opacity-50 text-white text-xs font-semibold py-1.5 rounded-md flex items-center justify-center gap-1.5"
+                    className="bg-[#1a73e8] hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-semibold py-1.5 rounded-md flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:cursor-not-allowed"
                   >
-                    <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`w-3 h-3 ${isLoading ? 'motion-safe:animate-spin' : ''}`} aria-hidden="true" />
                     Sync Now
                   </button>
                   <button
@@ -196,9 +205,9 @@ export function Dashboard() {
                       setTimeout(() => setArchiveDone(false), 3000);
                     }}
                     disabled={isLoading || notConfigured}
-                    className="bg-white border border-slate-200 disabled:opacity-50 text-slate-700 text-xs font-medium py-1.5 rounded-md flex items-center justify-center gap-1.5"
+                    className="bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50 text-slate-700 text-xs font-medium py-1.5 rounded-md flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:cursor-not-allowed"
                   >
-                    <Archive className="w-3 h-3" />
+                    <Archive className="w-3 h-3" aria-hidden="true" />
                     Archive Now
                   </button>
                   {syncResult !== null && (
@@ -212,13 +221,13 @@ export function Dashboard() {
                   <button
                     onClick={() => chrome.tabs.create({ url: `https://docs.google.com/document/d/${settings?.masterDocId}` })}
                     disabled={!settings?.masterDocId}
-                    className="bg-white border border-slate-200 disabled:opacity-40 text-slate-600 text-xs font-medium py-1.5 rounded-md flex items-center justify-center gap-1.5"
+                    className="bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 text-slate-600 text-xs font-medium py-1.5 rounded-md flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:cursor-not-allowed"
                   >
-                    <ExternalLink className="w-3 h-3" />
+                    <ExternalLink className="w-3 h-3" aria-hidden="true" />
                     Open Master Doc
                   </button>
                 </div>
-                <div className="bg-white border border-slate-200 rounded-lg p-4 h-[90px]">
+                <div className="bg-white border border-slate-200 rounded-lg p-4 min-h-[90px]">
                   <p className="text-xs font-semibold text-slate-900 mb-2">Recent Activity</p>
                   {lastEvent ? (
                     <div className="space-y-0.5">
@@ -233,11 +242,8 @@ export function Dashboard() {
                 </div>
               </div>
 
-              {/* Notifications */}
-              <div className="bg-white border border-slate-200 rounded-lg p-4">
-                <p className="text-xs font-semibold text-slate-900 mb-2">Notifications</p>
-                <Notifications compact />
-              </div>
+              {/* Notifications — renders nothing when empty */}
+              <Notifications />
             </div>
           )}
 

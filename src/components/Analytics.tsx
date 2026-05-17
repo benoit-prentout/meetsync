@@ -32,19 +32,19 @@ export function Analytics() {
       {/* Top stat row — 4 cards */}
       <div className="grid grid-cols-4 gap-3">
         <div className="bg-white border border-slate-200 rounded-lg p-3.5 h-[70px] flex flex-col justify-between">
-          <span className="text-[9px] text-slate-400 uppercase tracking-wide">Total Syncs</span>
+          <span className="text-[11px] text-slate-400 uppercase tracking-wide">Total Syncs</span>
           <span className="text-2xl font-bold text-slate-900">{totalSyncs}</span>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-3.5 h-[70px] flex flex-col justify-between">
-          <span className="text-[9px] text-slate-400 uppercase tracking-wide">Files Processed</span>
+          <span className="text-[11px] text-slate-400 uppercase tracking-wide">Files Processed</span>
           <span className="text-2xl font-bold text-slate-900">{totalFiles}</span>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-3.5 h-[70px] flex flex-col justify-between">
-          <span className="text-[9px] text-slate-400 uppercase tracking-wide">Avg Files / Sync</span>
+          <span className="text-[11px] text-slate-400 uppercase tracking-wide">Avg Files / Sync</span>
           <span className="text-2xl font-bold text-slate-900">{avgFiles}</span>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-3.5 h-[70px] flex flex-col justify-between">
-          <span className="text-[9px] text-slate-400 uppercase tracking-wide">Success Rate</span>
+          <span className="text-[11px] text-slate-400 uppercase tracking-wide">Success Rate</span>
           {successRate !== null ? (
             <span className={`text-2xl font-bold ${
               successRate >= 80 ? 'text-green-600' :
@@ -61,13 +61,13 @@ export function Analytics() {
       {/* Second row — last sync + doc size with progress bar */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white border border-slate-200 rounded-lg p-3.5 h-[70px] flex flex-col justify-between col-span-2">
-          <span className="text-[9px] text-slate-400 uppercase tracking-wide">Last Sync</span>
+          <span className="text-[11px] text-slate-400 uppercase tracking-wide">Last Sync</span>
           <span className="text-sm font-semibold text-slate-900">
             {formatLastSync(lastSync, true)}
           </span>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-3.5 flex flex-col justify-between h-[70px]">
-          <span className="text-[9px] text-slate-400 uppercase tracking-wide">Document Size</span>
+          <span className="text-[11px] text-slate-400 uppercase tracking-wide">Document Size</span>
           <span className="text-lg font-bold text-slate-900">{((docSize ?? 0) / 1024).toFixed(1)} KB</span>
           <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
             <div

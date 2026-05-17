@@ -29,7 +29,7 @@ export function Popup() {
         </div>
         <button
           onClick={signIn}
-          className="w-full bg-[#1a73e8] text-white text-sm font-semibold py-2 rounded-md"
+          className="w-full bg-[#1a73e8] hover:bg-blue-600 text-white text-sm font-semibold py-2 rounded-md transition-colors cursor-pointer"
         >
           Connect Google Account
         </button>
@@ -72,7 +72,7 @@ export function Popup() {
             key={card.label}
             className="bg-slate-50 border border-slate-200 rounded-md px-2.5 py-2 h-[52px] flex flex-col justify-between"
           >
-            <span className="text-[9px] text-slate-400 uppercase tracking-wide">{card.label}</span>
+            <span className="text-[11px] text-slate-400 uppercase tracking-wide">{card.label}</span>
             {'isStatus' in card && card.isStatus ? (
               <div className="flex items-center gap-1">
                 <div className={`w-1.5 h-1.5 rounded-full ${
@@ -107,9 +107,9 @@ export function Popup() {
             }
           }}
           disabled={isLoading || notConfigured}
-          className="w-full bg-[#1a73e8] disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-md flex items-center justify-center gap-1.5"
+          className="w-full bg-[#1a73e8] hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-md flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:cursor-not-allowed"
         >
-          <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-3 h-3 ${isLoading ? 'motion-safe:animate-spin' : ''}`} aria-hidden="true" />
           Sync Now
         </button>
         {syncResult !== null && (
@@ -119,7 +119,7 @@ export function Popup() {
         )}
         <button
           onClick={openDashboardTab}
-          className="w-full bg-white border border-slate-200 text-[#1a73e8] text-xs font-medium py-2 rounded-md"
+          className="w-full bg-white border border-slate-200 hover:bg-slate-50 text-[#1a73e8] text-xs font-medium py-2 rounded-md transition-colors cursor-pointer"
         >
           Open Dashboard →
         </button>
@@ -127,7 +127,7 @@ export function Popup() {
 
       {/* Footer */}
       <div className="border-t border-slate-100 px-3 py-2 flex justify-end">
-        <button onClick={signOut} className="text-[9px] text-slate-400 hover:text-slate-600">
+        <button onClick={signOut} className="text-[9px] text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
           Sign out
         </button>
       </div>

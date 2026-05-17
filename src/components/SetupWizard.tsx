@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettingsStore } from '@/store/settingsStore';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function SetupWizard() {
   const { signIn } = useAuth();
@@ -59,12 +57,12 @@ export function SetupWizard() {
 
   return (
     <div className="p-4 w-96">
-      <Card>
-        <CardHeader>
-          <CardTitle>Setup Required</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
+      <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+        <div className="px-5 py-4 border-b border-slate-100">
+          <h2 className="text-sm font-semibold text-slate-900">Setup Required</h2>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <p className="text-sm text-slate-500">
             Enter your Apps Script deployment URL to get started.
           </p>
           <div className="space-y-2">
@@ -78,37 +76,34 @@ export function SetupWizard() {
               disabled={saving}
             />
             {urlError && (
-              <p className="text-sm text-destructive">{urlError}</p>
+              <p className="text-sm text-red-600">{urlError}</p>
             )}
           </div>
           {error && (
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-red-600">{error}</p>
           )}
-          <Button
+          <button
             onClick={handleSave}
             disabled={saving || !!urlError || !url}
-            className="w-full"
+            className="w-full bg-[#1a73e8] hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-md transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
             {saving ? 'Connecting...' : 'Save & Connect'}
-          </Button>
-          <p className="text-xs text-muted-foreground text-center">
+          </button>
+          <p className="text-xs text-slate-400 text-center">
             Need help?{' '}
             <a
               href="#"
               onClick={(e) => {
                 e.preventDefault();
-                window.open(
-                  'https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm/blob/main/docs/google-cloud-setup.md',
-                  '_blank'
-                );
+                chrome.tabs.create({ url: 'https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm/blob/main/docs/google-cloud-setup.md' });
               }}
-              className="underline"
+              className="underline hover:text-slate-600 transition-colors"
             >
               See the setup guide
             </a>
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -31,8 +31,8 @@ useSettingsStore.setState({
   isAuthenticated: true,
   accessToken: 'fake-dev-token',
   deploymentUrl: 'https://fake-dev.invalid',
-  lastSync: new Date(now - 3_600_000).toISOString(),
-  docSize: 54_000,
+  lastSync: new Date(now - 3 * day).toISOString(),
+  docSize: 680_000,
   error: null,
   isLoading: false,
   settings: {
@@ -48,7 +48,7 @@ useSettingsStore.setState({
     historySize: 20,
   },
   history: [
-    { id: 'h1', timestamp: new Date(now - day).toISOString(), filesProcessed: 3, status: 'success', message: 'Synced 3 meeting notes' },
+    { id: 'h1', timestamp: new Date(now - 3 * day).toISOString(), filesProcessed: 2, status: 'partial', message: 'Synced 2 of 4 meeting notes — 2 failed (Drive quota exceeded)' },
     { id: 'h2', timestamp: new Date(now - 2 * day).toISOString(), filesProcessed: 1, status: 'success', message: 'Synced 1 meeting note' },
     { id: 'h3', timestamp: new Date(now - 4 * day).toISOString(), filesProcessed: 0, status: 'partial', message: 'No new notes found' },
     { id: 'h4', timestamp: new Date(now - 5 * day).toISOString(), filesProcessed: 5, status: 'success', message: 'Synced 5 meeting notes' },
