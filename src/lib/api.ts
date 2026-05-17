@@ -48,7 +48,19 @@ async function fetchApi<T>(
     throw new ApiError(`API request failed: ${response.statusText}`, response.status);
   }
 
-  const data: ApiResponse<T> = await response.json();
+  const text = await response.text();
+  if (text.trimStart().startsWith('<')) {
+    throw new ApiError(
+      'Apps Script returned HTML instead of JSON — the deployment URL may be incorrect or the script needs to be re-deployed.'
+    );
+  }
+
+  let data: ApiResponse<T>;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new ApiError(`Invalid JSON response from server: ${text.slice(0, 100)}`);
+  }
 
   if (!data.success) {
     throw new ApiError(data.error || 'Unknown error');
