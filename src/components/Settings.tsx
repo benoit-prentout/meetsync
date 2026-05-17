@@ -8,17 +8,19 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useApi } from '@/hooks/useApi';
 
 export function Settings() {
-  const { settings, updateSetting, setError, error, isLoading } = useSettingsStore();
+  const { settings, updateSetting, setError, error, isLoading, deploymentUrl, setDeploymentUrl } = useSettingsStore();
   const { updateSettings, getSettings } = useApi();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [autoSyncEnabled, setAutoSyncEnabledState] = useState(false);
   const [autoSyncInterval, setAutoSyncIntervalState] = useState(60);
+  const [deploymentUrlInput, setDeploymentUrlInput] = useState('');
 
   useEffect(() => {
-    chrome.storage.sync.get(['autoSyncEnabled', 'autoSyncIntervalMinutes'], (result) => {
+    chrome.storage.sync.get(['autoSyncEnabled', 'autoSyncIntervalMinutes', 'deploymentUrl'], (result) => {
       if (result.autoSyncEnabled !== undefined) setAutoSyncEnabledState(Boolean(result.autoSyncEnabled));
       if (result.autoSyncIntervalMinutes !== undefined) setAutoSyncIntervalState(Number(result.autoSyncIntervalMinutes));
+      if (result.deploymentUrl) setDeploymentUrlInput(String(result.deploymentUrl));
     });
   }, []);
 
@@ -80,8 +82,44 @@ export function Settings() {
     }
   };
 
+  const handleSaveDeploymentUrl = () => {
+    const trimmed = deploymentUrlInput.trim();
+    if (!trimmed) return;
+    chrome.storage.sync.set({ deploymentUrl: trimmed });
+    setDeploymentUrl(trimmed);
+    getSettings().catch(() => {});
+  };
+
   return (
     <div className="grid gap-6">
+      {/* Apps Script Deployment */}
+      <div className="bg-white border border-slate-200 rounded-lg p-4">
+        <p className="text-sm font-semibold text-slate-900 mb-1">Apps Script Deployment</p>
+        <p className="text-xs text-slate-400 mb-3">The URL of your deployed Apps Script web app.</p>
+        <div className="space-y-2">
+          <Label htmlFor="deploymentUrl">Deployment URL</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="deploymentUrl"
+              value={deploymentUrlInput}
+              onChange={(e) => setDeploymentUrlInput(e.target.value)}
+              placeholder="https://script.google.com/macros/s/…/exec"
+            />
+            <button
+              type="button"
+              onClick={handleSaveDeploymentUrl}
+              disabled={!deploymentUrlInput.trim() || deploymentUrlInput.trim() === (deploymentUrl ?? '')}
+              className="shrink-0 px-3 py-1.5 text-xs font-medium bg-[#1a73e8] text-white rounded-md hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            >
+              Update
+            </button>
+          </div>
+          {deploymentUrl && deploymentUrlInput.trim() === deploymentUrl && (
+            <p className="text-[10px] text-slate-400 truncate">{deploymentUrl}</p>
+          )}
+        </div>
+      </div>
+
       {/* Google Drive Configuration */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
         <p className="text-sm font-semibold text-slate-900 mb-3">Google Drive Configuration</p>
