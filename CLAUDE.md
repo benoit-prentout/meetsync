@@ -25,7 +25,7 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 ### Apps Script
 1. Edit `apps-script/Code.gs`.
 2. Copy full contents into the Apps Script editor bound to a Google Doc.
-3. Deploy as web app: **Execute as: Me**, **Who has access: Anyone with Google account**.
+3. Deploy as web app: **Execute as: Me**, **Who has access: Anyone**.
 4. Copy the deployment URL — user enters it in the extension's setup wizard.
 
 ### Extension

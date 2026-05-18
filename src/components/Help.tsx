@@ -54,7 +54,7 @@ export function Help() {
             <code className="bg-slate-100 px-1 rounded text-[10px]">drive.google.com/drive/folders/<strong>[ID]</strong></code>
           </Step>
           <Step n={3}>
-            Deploy the <strong>Apps Script backend</strong>: open the script editor, paste <code className="bg-slate-100 px-1 rounded text-[10px]">Code.gs</code>, deploy as a web app (<em>Execute as: Me</em>, <em>Who has access: Anyone with Google account</em>), and copy the deployment URL.
+            Deploy the <strong>Apps Script backend</strong>: open the script editor, paste <code className="bg-slate-100 px-1 rounded text-[10px]">Code.gs</code>, deploy as a web app (<em>Execute as: Me</em>, <em>Who has access: Anyone</em>), and copy the deployment URL.
           </Step>
           <Step n={4}>
             Open the extension popup and complete the <strong>Setup Wizard</strong>: sign in, paste your deployment URL, then go to{' '}
@@ -100,7 +100,7 @@ export function Help() {
           <ul className="space-y-1.5 pl-1">
             {[
               'Master Doc ID and Archive Folder ID are set and correct in Settings.',
-              'The Apps Script backend is deployed with Execute as: Me — the script runs under your account and has access to your Drive.',
+              'The Apps Script backend is deployed with Execute as: Me and Who has access: Anyone (not "Anyone with Google account") — the script runs under your account and has access to your Drive.',
               'Your Google Meet notes are saved in a folder named exactly as configured in "Source Folder Name" (default: Meet Notes).',
               'You\'re signed into the same Google account in the extension as the one that owns the Apps Script.',
               'The deployment URL in the extension\'s Setup Wizard matches the current Apps Script deployment (re-deploy if you edited the script).',
