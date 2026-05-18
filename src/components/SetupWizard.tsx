@@ -4,6 +4,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { api } from '@/lib/api';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MeetSyncMark } from '@/components/Brand';
 
 export function SetupWizard() {
   const { signIn } = useAuth();
@@ -74,8 +75,12 @@ export function SetupWizard() {
   return (
     <div className="p-4 w-96">
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="text-sm font-semibold text-slate-900">Setup Required</h2>
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
+          <MeetSyncMark size={28} />
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900 leading-tight">MeetSync for NotebookLM</h2>
+            <p className="text-[11px] text-slate-500 mt-0.5">Setup required</p>
+          </div>
         </div>
         <div className="px-5 py-4 space-y-4">
           <p className="text-sm text-slate-500">

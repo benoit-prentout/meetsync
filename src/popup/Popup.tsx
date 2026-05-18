@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useApi } from '@/hooks/useApi';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatLastSync } from '@/lib/format';
+import { MeetSyncMark } from '@/components/Brand';
 
 function openDashboardTab() {
   chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
@@ -18,11 +19,9 @@ export function Popup() {
   if (!isAuthenticated) {
     return (
       <div className="w-60 p-6 flex flex-col items-center gap-4">
-        <div className="w-10 h-10 bg-[#1a73e8] rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-lg">N</span>
-        </div>
+        <MeetSyncMark size={40} />
         <div className="text-center">
-          <p className="font-semibold text-slate-900 text-sm">Meet → NotebookLM</p>
+          <p className="font-semibold text-slate-900 text-sm">MeetSync for NotebookLM</p>
           <p className="text-xs text-slate-500 mt-1">
             Connect your Google account to sync your meeting notes
           </p>
@@ -59,10 +58,12 @@ export function Popup() {
     <div className="w-60 bg-white overflow-hidden">
       {/* Header */}
       <div className="bg-[#1a73e8] px-4 py-3 flex items-center gap-2">
-        <div className="w-5 h-5 bg-white/20 rounded flex items-center justify-center">
-          <span className="text-white font-bold text-[11px]">N</span>
+        <div className="w-5 h-5 rounded bg-white/20 flex items-center justify-center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+            <path d="M15 8v8H5V8h10m1-2H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4V7c0-.55-.45-1-1-1z" />
+          </svg>
         </div>
-        <span className="text-white font-semibold text-xs">Meet → NotebookLM</span>
+        <span className="text-white font-semibold text-xs">MeetSync</span>
       </div>
 
       {/* 2×2 stat grid */}

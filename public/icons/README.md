@@ -1,33 +1,16 @@
 # Extension Icons
 
-Chrome extension requires PNG icons in the following sizes:
-- 16x16: toolbar icon
-- 48x48: extension page
-- 128x128: Chrome Web Store listing
+Chrome extension PNG icons in three sizes:
 
-## Generate PNGs from SVG
+- `icon16.png` — toolbar icon
+- `icon48.png` — extensions page
+- `icon128.png` — Chrome Web Store listing
 
-Run the following to generate PNG icons:
+## Regenerating
 
-```bash
-# Using ImageMagick
-convert icon128.svg -resize 16x16 icon16.png
-convert icon128.svg -resize 48x48 icon48.png
-convert icon128.svg icon128.png
+The icons are rendered from `assets/branding/icon.html` (a single 100%-sized squircle with the MeetSync gradient and video glyph). To regenerate:
 
-# Or using online tools:
-# 1. Upload SVG to https://cloudconvert.com/svg-to-png
-# 2. Download all three sizes
-```
+1. Serve `assets/branding/` over HTTP (e.g. `python3 -m http.server`).
+2. Open `icon.html` in a headless browser, resize the viewport to the target size (16, 48, or 128), and screenshot.
 
-## Current Icons
-
-The extension is configured to use PNG files. For development, you can:
-1. Create placeholder PNG files (any 128x128 image works)
-2. Or update manifest.json to use SVG where supported
-
-## Recommended Colors
-
-- Primary: #4285f4 (Google Blue)
-- Secondary: #34a853 (Google Green)
-- Text/Icon: White
+The source HTML scales the squircle and glyph proportionally, so a viewport resize is the only thing that changes between sizes.

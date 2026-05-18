@@ -3,3 +3,5 @@ dist
 .DS_Store
 *.zip
 .vscode
+.playwright-mcp
+.superpowers

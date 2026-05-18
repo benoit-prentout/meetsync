@@ -14,6 +14,7 @@ import { Analytics } from '@/components/Analytics';
 import { Settings } from '@/components/Settings';
 import { FileExplorer } from '@/components/FileExplorer';
 import { Notifications } from '@/components/Notifications';
+import { MeetSyncMark } from '@/components/Brand';
 import { Help } from '@/components/Help';
 import { useAuth } from '@/hooks/useAuth';
 import { useApi } from '@/hooks/useApi';
@@ -79,10 +80,8 @@ export function Dashboard({ onSignOut }: { onSignOut?: () => void }) {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Top bar */}
       <header className="h-12 bg-white border-b border-slate-200 flex items-center px-5 gap-3 shrink-0">
-        <div className="w-6 h-6 bg-[#1a73e8] rounded-md flex items-center justify-center">
-          <span className="text-white font-bold text-xs">N</span>
-        </div>
-        <span className="font-semibold text-slate-900 text-sm">Meet → NotebookLM</span>
+        <MeetSyncMark size={24} />
+        <span className="font-semibold text-slate-900 text-sm">MeetSync for NotebookLM</span>
         <div className="ml-auto flex items-center gap-3">
           {lastEvent && (
             <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${

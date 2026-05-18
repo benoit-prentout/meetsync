@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MeetSync for NotebookLM — hero</title>
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  body {
+    font-family: 'Google Sans', 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .root {
+    width: 800px;
+    box-sizing: border-box;
+    padding: 32px;
+    background: #f8f9fa;
+  }
+  .card {
+    background: #ffffff;
+    border: 1px solid #e8eaed;
+    border-radius: 16px;
+    padding: 40px 32px;
+    text-align: center;
+  }
+  .pipeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin-bottom: 28px;
+  }
+  .node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .squircle {
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(60, 64, 67, 0.1);
+  }
+  .squircle.meet {
+    background: #ffffff;
+    border: 1px solid #e8eaed;
+  }
+  .squircle.meetsync {
+    width: 68px;
+    height: 68px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #1a73e8 0%, #4285f4 60%, #34a853 140%);
+    box-shadow: 0 6px 16px rgba(26, 115, 232, 0.3);
+  }
+  .squircle.notebooklm {
+    background: #202124;
+  }
+  .caption {
+    font-size: 11px;
+    color: #5f6368;
+    font-weight: 500;
+  }
+  .caption.accent {
+    color: #1a73e8;
+    font-weight: 600;
+  }
+  .arrow {
+    margin-top: -18px;
+  }
+  h1 {
+    margin: 0 0 10px 0;
+    font-size: 28px;
+    font-weight: 600;
+    color: #202124;
+    letter-spacing: -0.7px;
+  }
+  .tagline {
+    margin: 0 auto 18px auto;
+    max-width: 440px;
+    font-size: 14px;
+    color: #5f6368;
+    line-height: 1.55;
+  }
+  .pills {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .pill {
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 12px;
+    font-weight: 500;
+  }
+  .pill.blue { background: #e8f0fe; color: #1a73e8; }
+  .pill.green { background: #e6f4ea; color: #1e8e3e; }
+  .pill.amber { background: #fef9e3; color: #b06000; }
+</style>
+</head>
+<body>
+  <div class="root">
+    <div class="card">
+      <div class="pipeline">
+        <div class="node">
+          <div class="squircle meet">
+            <svg width="36" height="36" viewBox="0 0 87.5 72" xmlns="http://www.w3.org/2000/svg">
+              <path d="M49.5 36l8.53 9.75 11.47 7.33 2-17.02-2-16.64-11.69 6.44z" fill="#00832d"/>
+              <path d="M0 51.5V66c0 3.32 2.69 6 6 6h14.5l3-10.96-3-9.54-9.95-3z" fill="#0066da"/>
+              <path d="M20.5 0L0 20.5l10.55 3 9.95-3 2.95-9.41z" fill="#e94235"/>
+              <path d="M0 51.5h20.5v-31H0z" fill="#2684fc"/>
+              <path d="M82.6 8.68L69.5 19.42v33.66l13.16 10.79c1.97 1.54 4.85.13 4.85-2.37V11c0-2.53-2.94-3.93-4.91-2.32zM49.5 36v15.5h-29V72h43c3.31 0 6-2.68 6-6V53.08z" fill="#00ac47"/>
+              <path d="M63.5 0h-43v20.5h29V36l20-16.57V6c0-3.31-2.69-6-6-6z" fill="#ffba00"/>
+            </svg>
+          </div>
+          <span class="caption">Google Meet</span>
+        </div>
+        <div class="arrow">
+          <svg width="40" height="14" viewBox="0 0 40 14" fill="none">
+            <path d="M2 7h30M28 2l6 5-6 5" stroke="#9aa0a6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="node">
+          <div class="squircle meetsync">
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="white">
+              <path d="M15 8v8H5V8h10m1-2H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4V7c0-.55-.45-1-1-1z"/>
+            </svg>
+          </div>
+          <span class="caption accent">MeetSync</span>
+        </div>
+        <div class="arrow">
+          <svg width="40" height="14" viewBox="0 0 40 14" fill="none">
+            <path d="M2 7h30M28 2l6 5-6 5" stroke="#9aa0a6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="node">
+          <div class="squircle notebooklm">
+            <svg width="40" height="30" viewBox="0 0 175 130" xmlns="http://www.w3.org/2000/svg">
+              <path d="M87.27,1.14C39.07,1.14,0,39.88,0,87.69v41.44h16.09v-4.13c0-19.39,15.84-35.11,35.39-35.11s35.39,15.72,35.39,35.11v4.13h16.09v-4.13c0-28.2-23.05-51.05-51.48-51.05-11.07,0-21.32,3.46-29.72,9.37,8.79-17.32,26.88-29.21,47.77-29.21,29.51,0,53.44,23.74,53.44,53v22.02h16.09v-22.02c0-38.08-31.13-68.96-69.53-68.96-17.27,0-33.06,6.24-45.22,16.58,11.94-22.39,35.65-37.64,62.97-37.64,39.32,0,71.19,31.61,71.19,70.6v41.44h16.09v-41.44C174.55,39.88,135.48,1.14,87.27,1.14Z" fill="#fff"/>
+            </svg>
+          </div>
+          <span class="caption">NotebookLM</span>
+        </div>
+      </div>
+      <h1>MeetSync for NotebookLM</h1>
+      <p class="tagline">
+        Auto-sync your Google Meet &ldquo;Notes by Gemini&rdquo; into a master Google Doc &mdash; a living, unlimited knowledge base for NotebookLM.
+      </p>
+      <div class="pills">
+        <span class="pill blue">Chrome Extension</span>
+        <span class="pill green">Apps Script</span>
+        <span class="pill amber">Open Source</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

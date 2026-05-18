@@ -1,10 +1,10 @@
-# Google Meet Gemini Notes → NotebookLM Sync
-
 <p align="center">
-  <b>English</b> | <a href="README_FR.md">Français</a>
+  <img src="assets/branding/hero.png" alt="MeetSync for NotebookLM" width="800">
 </p>
 
-Automatically consolidate all your **Google Meet "Notes by Gemini"** into a single **Master Google Doc**. This tool is designed to create a living, unlimited knowledge base for **NotebookLM**.
+# MeetSync for NotebookLM
+
+Automatically consolidate all your **Google Meet "Notes by Gemini"** into a single **Master Google Doc** — a living, unlimited knowledge base for **NotebookLM**.
 
 ---
 
@@ -36,7 +36,7 @@ For developers who want to self-host the Chrome extension:
 
 NotebookLM is powerful, but it limits the number of sources you can add (50 sources max). By grouping months of meetings (yours and your team's) into a single "brain" document, you enable the AI to make long-term connections without ever hitting source limits.
 
-### ✨ New Features (v4.1)
+### ✨ Features
 
 * 👥 **Team Support**: Fetches meeting notes organized by your colleagues (files in "Shared with me", "Shared Drives", or files containing "Notes par Gemini").
 * 📊 **Summary Table**: An automatically generated table at the top of your document lists all synced meetings.
