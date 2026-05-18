@@ -51,7 +51,7 @@ async function fetchApi<T>(
   const text = await response.text();
   if (text.trimStart().startsWith('<')) {
     throw new ApiError(
-      'Apps Script returned HTML instead of JSON — the deployment URL may be incorrect or the script needs to be re-deployed.'
+      'Apps Script returned HTML instead of JSON. This usually means the deployed version is missing the doGet function. In the Apps Script editor: save Code.gs, then deploy a new version (not an existing version).'
     );
   }
 
