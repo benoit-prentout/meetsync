@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettingsStore } from '@/store/settingsStore';
+import { api } from '@/lib/api';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -9,7 +10,7 @@ export function SetupWizard() {
   const { setDeploymentUrl } = useSettingsStore();
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [phase, setPhase] = useState<'idle' | 'connecting' | 'verifying'>('idle');
   const [error, setError] = useState<string | null>(null);
 
   function validateUrl(value: string): string | null {
@@ -33,7 +34,7 @@ export function SetupWizard() {
       setUrlError(validationError);
       return;
     }
-    setSaving(true);
+    setPhase('connecting');
     setError(null);
     useSettingsStore.getState().setError(null);
     try {
@@ -43,15 +44,28 @@ export function SetupWizard() {
           else resolve();
         });
       });
-      await signIn();
-      // Only transition to Dashboard after auth succeeds
+      const token = await signIn();
+      setPhase('verifying');
+      await api.getStatus(token);
+      // Only transition to Dashboard after connection test succeeds
       setDeploymentUrl(url.trim());
     } catch (err) {
-      // Roll back the stored URL so the user can retry
       chrome.storage.sync.remove('deploymentUrl');
-      setError(err instanceof Error ? err.message : 'Setup failed. Please try again.');
+      if (err instanceof TypeError) {
+        setError('Could not reach the deployment URL — check the URL and your internet connection.');
+      } else if (err instanceof Error && err.message.includes('HTML')) {
+        setError(
+          "Apps Script deployment not responding correctly — make sure you saved Code.gs and deployed a new version (not an existing one) in the Apps Script editor."
+        );
+      } else if (err instanceof Error && /unauthori[sz]ed/i.test(err.message)) {
+        setError(
+          'Authorization failed — make sure the script is deployed as Execute as: Me and Who has access: Anyone.'
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'Setup failed. Please try again.');
+      }
     } finally {
-      setSaving(false);
+      setPhase('idle');
     }
   }
 
@@ -73,7 +87,7 @@ export function SetupWizard() {
               placeholder="https://script.google.com/macros/s/.../exec"
               value={url}
               onChange={handleUrlChange}
-              disabled={saving}
+              disabled={phase !== 'idle'}
             />
             {urlError && (
               <p className="text-sm text-red-600">{urlError}</p>
@@ -84,10 +98,10 @@ export function SetupWizard() {
           )}
           <button
             onClick={handleSave}
-            disabled={saving || !!urlError || !url}
+            disabled={phase !== 'idle' || !!urlError || !url}
             className="w-full bg-[#1a73e8] hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-md transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
-            {saving ? 'Connecting...' : 'Save & Connect'}
+            {phase === 'verifying' ? 'Verifying…' : phase === 'connecting' ? 'Connecting…' : 'Save & Connect'}
           </button>
           <p className="text-xs text-slate-400 text-center">
             Need help?{' '}
