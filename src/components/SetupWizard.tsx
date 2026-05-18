@@ -44,6 +44,8 @@ export function SetupWizard() {
           else resolve();
         });
       });
+      // Note: signIn() internally calls api.getSettings() and swallows errors.
+      // api.getStatus() below is the first validated round-trip to the backend.
       const token = await signIn();
       setPhase('verifying');
       await api.getStatus(token);

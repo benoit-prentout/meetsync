@@ -29,6 +29,8 @@ describe('SetupWizard', () => {
     vi.clearAllMocks();
 
     const { api } = await import('@/lib/api');
+    // vi.clearAllMocks() above resets implementations set by the module-level vi.mock() factory,
+    // so we must re-apply the default getStatus mock here to restore it for each test.
     (api.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true });
 
     const { useAuth } = await import('@/hooks/useAuth');
