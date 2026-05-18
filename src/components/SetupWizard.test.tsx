@@ -3,10 +3,17 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SetupWizard } from '@/components/SetupWizard';
 
+// Mock api module — tests control getStatus behavior per-test
+vi.mock('@/lib/api', () => ({
+  api: {
+    getStatus: vi.fn().mockResolvedValue({ success: true }),
+  },
+}));
+
 // Mock useAuth hook
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: vi.fn(() => ({
-    signIn: vi.fn().mockResolvedValue(undefined),
+    signIn: vi.fn().mockResolvedValue('test-token'),
   })),
 }));
 
@@ -20,10 +27,15 @@ vi.mock('@/store/settingsStore', () => ({
 describe('SetupWizard', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+
+    const { api } = await import('@/lib/api');
+    (api.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true });
+
     const { useAuth } = await import('@/hooks/useAuth');
     (useAuth as ReturnType<typeof vi.fn>).mockReturnValue({
-      signIn: vi.fn().mockResolvedValue(undefined),
+      signIn: vi.fn().mockResolvedValue('test-token'),
     });
+
     const { useSettingsStore } = await import('@/store/settingsStore');
     (useSettingsStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       setDeploymentUrl: vi.fn(),
@@ -32,6 +44,7 @@ describe('SetupWizard', () => {
     (useSettingsStore as unknown as { getState: () => { setError: ReturnType<typeof vi.fn> } }).getState = vi.fn().mockReturnValue({
       setError: vi.fn(),
     });
+
     (chrome.storage.sync.set as ReturnType<typeof vi.fn>).mockImplementation(
       (_data: Record<string, unknown>, cb: () => void) => cb()
     );
@@ -108,6 +121,47 @@ describe('SetupWizard', () => {
     await userEvent.click(screen.getByRole('button', { name: /save & connect/i }));
     await waitFor(() => {
       expect(screen.getByText(/OAuth cancelled/i)).toBeInTheDocument();
+      expect(chrome.storage.sync.remove).toHaveBeenCalledWith('deploymentUrl');
+    });
+  });
+
+  it('calls api.getStatus with the token after signIn succeeds', async () => {
+    const { api } = await import('@/lib/api');
+    render(<SetupWizard />);
+    const input = screen.getByLabelText(/apps script deployment url/i);
+    await userEvent.type(input, 'https://script.google.com/macros/s/test/exec');
+    await userEvent.click(screen.getByRole('button', { name: /save & connect/i }));
+    await waitFor(() => {
+      expect(api.getStatus).toHaveBeenCalledWith('test-token');
+    });
+  });
+
+  it('shows HTML error and removes stored URL when connection test returns HTML', async () => {
+    const { api } = await import('@/lib/api');
+    (api.getStatus as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Apps Script returned HTML instead of JSON')
+    );
+    render(<SetupWizard />);
+    const input = screen.getByLabelText(/apps script deployment url/i);
+    await userEvent.type(input, 'https://script.google.com/macros/s/test/exec');
+    await userEvent.click(screen.getByRole('button', { name: /save & connect/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Apps Script deployment not responding correctly/i)).toBeInTheDocument();
+      expect(chrome.storage.sync.remove).toHaveBeenCalledWith('deploymentUrl');
+    });
+  });
+
+  it('shows network error and removes stored URL when connection test throws TypeError', async () => {
+    const { api } = await import('@/lib/api');
+    (api.getStatus as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new TypeError('Failed to fetch')
+    );
+    render(<SetupWizard />);
+    const input = screen.getByLabelText(/apps script deployment url/i);
+    await userEvent.type(input, 'https://script.google.com/macros/s/test/exec');
+    await userEvent.click(screen.getByRole('button', { name: /save & connect/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Could not reach the deployment URL/i)).toBeInTheDocument();
       expect(chrome.storage.sync.remove).toHaveBeenCalledWith('deploymentUrl');
     });
   });
