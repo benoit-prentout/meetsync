@@ -29,14 +29,16 @@ describe('api - getDeploymentUrl / fetchApi', () => {
     (chrome.storage.sync.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       deploymentUrl: 'https://script.google.com/macros/s/test/exec',
     });
+    const responseData = {
+      success: true,
+      lastSync: null,
+      docSize: 0,
+      isConfigured: false,
+    };
     globalThis.fetch = vi.fn().mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        success: true,
-        lastSync: null,
-        docSize: 0,
-        isConfigured: false,
-      }),
+      json: async () => responseData,
+      text: async () => JSON.stringify(responseData),
     });
     const { api } = await import('@/lib/api');
     const result = await api.getStatus('test-token');
@@ -90,9 +92,11 @@ describe('api - getDeploymentUrl / fetchApi', () => {
     (chrome.storage.sync.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       deploymentUrl: 'https://script.google.com/macros/s/test/exec',
     });
+    const responseData = { success: false, error: 'Script error' };
     globalThis.fetch = vi.fn().mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ success: false, error: 'Script error' }),
+      json: async () => responseData,
+      text: async () => JSON.stringify(responseData),
     });
     const { ApiError, api } = await import('@/lib/api');
     await expect(api.getStatus('test-token')).rejects.toThrow(ApiError);
