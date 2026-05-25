@@ -323,6 +323,7 @@ function appendMeetNotesToMasterRestAPI(docId) {
   const filesToProcess = toProcess.reverse();
   const requests = [];
   const syncedEntries = [];
+  const updatedNames = [];
   let errorCount = 0;
 
   for (const file of filesToProcess) {
@@ -331,6 +332,7 @@ function appendMeetNotesToMasterRestAPI(docId) {
       const participants = extractParticipants_(rawText);
       const cleanText = cleanGeminiText_(rawText);
       const isUpdate = updatedIds.indexOf(file.id) !== -1;
+      if (isUpdate) updatedNames.push(file.name);
       const dateStr = Utilities.formatDate(new Date(file.createdTime), timezone, 'yyyy-MM-dd');
 
       const blockText = buildBlock_(file.name, dateStr, participants, cleanText, isUpdate);
@@ -365,7 +367,15 @@ function appendMeetNotesToMasterRestAPI(docId) {
     }
 
     const duration = Date.now() - startTime;
-    logSyncRun_({ date: new Date().toISOString(), synced: syncedEntries.length, updated: updatedIds.length, errors: errorCount, duration });
+    logSyncRun_({
+      date: new Date().toISOString(),
+      synced: syncedEntries.length,
+      updated: updatedIds.length,
+      errors: errorCount,
+      duration,
+      syncedNames: syncedEntries.map(e => e.name),
+      updatedNames
+    });
     props.setProperty('lastSync', String(Date.now()));
   }
 
@@ -595,6 +605,7 @@ function appendMeetNotesToMaster() {
   const filesToProcess = toProcess.reverse();
   const requests = [];
   const syncedEntries = [];
+  const updatedNames = [];
   let errorCount = 0;
 
   for (const file of filesToProcess) {
@@ -605,6 +616,7 @@ function appendMeetNotesToMaster() {
       const participants = extractParticipants_(rawText);
       const cleanText = cleanGeminiText_(rawText);
       const isUpdate = updatedIds.indexOf(file.id) !== -1;
+      if (isUpdate) updatedNames.push(file.name);
       const dateStr = Utilities.formatDate(new Date(file.createdTime), timezone, 'yyyy-MM-dd');
 
       const blockText = buildBlock_(file.name, dateStr, participants, cleanText, isUpdate);
@@ -647,7 +659,15 @@ function appendMeetNotesToMaster() {
 
     const duration = Date.now() - startTime;
     console.timeEnd('Total Sync');
-    logSyncRun_({ date: new Date().toISOString(), synced: syncedEntries.length, updated: updatedIds.length, errors: errorCount, duration });
+    logSyncRun_({
+      date: new Date().toISOString(),
+      synced: syncedEntries.length,
+      updated: updatedIds.length,
+      errors: errorCount,
+      duration,
+      syncedNames: syncedEntries.map(e => e.name),
+      updatedNames
+    });
     props.setProperty('lastSync', String(Date.now()));
 
     const errorMsg = errorCount > 0 ? ` ⚠️ ${errorCount} error(s) — check Stackdriver logs.` : '';
