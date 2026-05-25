@@ -204,7 +204,7 @@ function getHistory() {
       message: message,
       syncedNames: r.syncedNames || [],
       updatedNames: r.updatedNames || [],
-      duration: r.duration || null
+      duration: r.duration ?? null
     };
   });
   return { success: true, history: history };
@@ -838,7 +838,7 @@ function showSyncHistory() {
 
   const lines = history.map(run => {
     const d = new Date(run.date).toLocaleString();
-    const dur = `${(run.duration / 1000).toFixed(1)}s`;
+    const dur = run.duration != null ? `${(run.duration / 1000).toFixed(1)}s` : 'n/a';
     return `${d}  |  +${run.synced} new  |  ↻${run.updated} updates  |  ⚠️${run.errors} errors  |  ⏱${dur}`;
   });
 

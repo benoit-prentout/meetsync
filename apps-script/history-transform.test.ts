@@ -34,7 +34,7 @@ function transformHistoryRecord(
     message,
     syncedNames: r.syncedNames || [],
     updatedNames: r.updatedNames || [],
-    duration: r.duration || null,
+    duration: r.duration ?? null,
   };
 }
 
