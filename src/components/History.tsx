@@ -111,14 +111,14 @@ export function History() {
                 {/* Expanded detail panel */}
                 {isOpen && (
                   <div className="border-t border-slate-100 px-4 py-2.5 flex flex-col gap-1">
-                    {event.syncedNames?.map((name) => (
-                      <p key={name} className="text-[11px] text-slate-600 flex items-center gap-1.5">
+                    {event.syncedNames?.map((name, i) => (
+                      <p key={`s-${i}`} className="text-[11px] text-slate-600 flex items-center gap-1.5">
                         <span className="text-green-600 font-bold">▸</span>
                         {name}
                       </p>
                     ))}
-                    {event.updatedNames?.map((name) => (
-                      <p key={name} className="text-[11px] text-slate-600 flex items-center gap-1.5">
+                    {event.updatedNames?.map((name, i) => (
+                      <p key={`u-${i}`} className="text-[11px] text-slate-600 flex items-center gap-1.5">
                         <span className="text-blue-500 font-bold">↻</span>
                         {name}
                       </p>
