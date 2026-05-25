@@ -2,7 +2,15 @@ import { describe, it, expect } from 'vitest';
 
 // Replicate the transform logic from getHistory() in Code.gs
 function transformHistoryRecord(
-  r: { date: string; synced?: number; updated?: number; errors?: number },
+  r: {
+    date: string;
+    synced?: number;
+    updated?: number;
+    errors?: number;
+    syncedNames?: string[];
+    updatedNames?: string[];
+    duration?: number;
+  },
   _i: number
 ) {
   const filesProcessed = (r.synced || 0) + (r.updated || 0);
@@ -24,6 +32,9 @@ function transformHistoryRecord(
     filesProcessed,
     status,
     message,
+    syncedNames: r.syncedNames || [],
+    updatedNames: r.updatedNames || [],
+    duration: r.duration || null,
   };
 }
 
@@ -63,5 +74,39 @@ describe('getHistory transform', () => {
     expect(result.filesProcessed).toBe(0);
     expect(result.status).toBe('success');
     expect(result.message).toBe('0 synced, 0 updated');
+  });
+
+  it('passes through syncedNames and updatedNames when present', () => {
+    const result = transformHistoryRecord(
+      {
+        date: '2025-01-01T00:00:00.000Z',
+        synced: 2,
+        updated: 1,
+        errors: 0,
+        syncedNames: ['Weekly Sync', '1:1 Lucas'],
+        updatedNames: ['Team standup'],
+      },
+      0
+    );
+    expect(result.syncedNames).toEqual(['Weekly Sync', '1:1 Lucas']);
+    expect(result.updatedNames).toEqual(['Team standup']);
+  });
+
+  it('defaults syncedNames, updatedNames to [] and duration to null when absent', () => {
+    const result = transformHistoryRecord(
+      { date: '2025-01-01T00:00:00.000Z', synced: 1, updated: 0, errors: 0 },
+      0
+    );
+    expect(result.syncedNames).toEqual([]);
+    expect(result.updatedNames).toEqual([]);
+    expect(result.duration).toBeNull();
+  });
+
+  it('passes through duration when present', () => {
+    const result = transformHistoryRecord(
+      { date: '2025-01-01T00:00:00.000Z', synced: 1, updated: 0, errors: 0, duration: 4200 },
+      0
+    );
+    expect(result.duration).toBe(4200);
   });
 });

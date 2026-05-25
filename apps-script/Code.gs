@@ -201,7 +201,10 @@ function getHistory() {
       timestamp: r.date,
       filesProcessed: filesProcessed,
       status: status,
-      message: message
+      message: message,
+      syncedNames: r.syncedNames || [],
+      updatedNames: r.updatedNames || [],
+      duration: r.duration || null
     };
   });
   return { success: true, history: history };
