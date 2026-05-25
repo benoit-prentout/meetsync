@@ -4,6 +4,9 @@ export interface SyncEvent {
   filesProcessed: number;
   status: 'success' | 'partial' | 'error';
   message: string;
+  syncedNames?: string[];
+  updatedNames?: string[];
+  duration?: number;
 }
 
 export interface Settings {
