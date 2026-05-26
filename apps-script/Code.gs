@@ -33,6 +33,17 @@ const CONFIG = {
   // Master document ID for REST API mode.
   // When set, the script operates on this document instead of the active one.
   MASTER_DOC_ID: '',
+
+  // Pattern to filter source files by name (* matches anything). Empty = no filter.
+  SOURCE_FILE_NAME_PATTERN: '',
+
+  // Newline-separated list of exclusion patterns. Empty = no exclusions.
+  EXCLUSION_PATTERNS: '',
+
+  // Restrict sync to a specific time window.
+  ENABLE_TIME_WINDOW: false,
+  SYNC_WINDOW_START: '09:00',
+  SYNC_WINDOW_END: '17:00',
 };
 
 (function() {
@@ -40,7 +51,37 @@ const CONFIG = {
     var raw = PropertiesService.getScriptProperties().getProperty('CONFIG_OVERRIDES');
     if (raw) Object.assign(CONFIG, JSON.parse(raw));
   } catch (_) {}
+  })();
 })();
+
+var SCRIPT_INTEGRITY = 'ad16b9530f5c502793e07655dc4235ac29bd3d63c9d39f085f9b0fcb2bc9f2ec';
+
+function matchesPattern_(name, pattern) {
+  if (!pattern) return true;
+  var regex = pattern.replace(/\*/g, '.*').replace(/\?/g, '.');
+  return name.match(new RegExp('^' + regex + '$', 'i')) !== null;
+}
+
+function isExcluded_(name, exclusionPatterns) {
+  if (!exclusionPatterns) return false;
+  var patterns = exclusionPatterns.split('\n');
+  for (var i = 0; i < patterns.length; i++) {
+    var p = patterns[i].trim();
+    if (p && matchesPattern_(name, p)) return true;
+  }
+  return false;
+}
+
+function isWithinTimeWindow_() {
+  if (!CONFIG.ENABLE_TIME_WINDOW) return true;
+  var now = new Date();
+  var currentMinutes = now.getHours() * 60 + now.getMinutes();
+  var startParts = CONFIG.SYNC_WINDOW_START.split(':');
+  var endParts = CONFIG.SYNC_WINDOW_END.split(':');
+  var startMinutes = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
+  var endMinutes = parseInt(endParts[0], 10) * 60 + parseInt(endParts[1], 10);
+  return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+}
 
 function validateCaller_(accessToken) {
   if (!accessToken) return false;
@@ -136,7 +177,8 @@ function getStatus() {
     success: true,
     lastSync: lastSync ? new Date(parseInt(lastSync, 10)).toISOString() : null,
     docSize: estimatedChars,
-    isConfigured: isConfigured
+    isConfigured: isConfigured,
+    backendIntegrity: SCRIPT_INTEGRITY
   };
 }
 
@@ -149,7 +191,13 @@ function getSettings() {
       archiveThresholdChars: CONFIG.ARCHIVE_THRESHOLD_CHARS,
       enableMonthlyArchive: CONFIG.ENABLE_MONTHLY_ARCHIVE,
       enableUpdateDetection: CONFIG.ENABLE_UPDATE_DETECTION,
+      enableNotifications: CONFIG.ENABLE_NOTIFICATIONS,
       maxAgeDays: CONFIG.MAX_AGE_DAYS,
+      sourceFileNamePattern: CONFIG.SOURCE_FILE_NAME_PATTERN,
+      exclusionPatterns: CONFIG.EXCLUSION_PATTERNS,
+      enableTimeWindow: CONFIG.ENABLE_TIME_WINDOW,
+      syncWindowStart: CONFIG.SYNC_WINDOW_START,
+      syncWindowEnd: CONFIG.SYNC_WINDOW_END,
       archiveFolderId: CONFIG.ARCHIVE_FOLDER_ID,
       masterDocId: CONFIG.MASTER_DOC_ID,
       maxRetries: CONFIG.MAX_RETRIES,
@@ -168,7 +216,13 @@ var SETTINGS_KEY_MAP_ = {
   archiveFolderId: 'ARCHIVE_FOLDER_ID',
   masterDocId: 'MASTER_DOC_ID',
   maxRetries: 'MAX_RETRIES',
-  historySize: 'HISTORY_SIZE'
+  historySize: 'HISTORY_SIZE',
+  enableNotifications: 'ENABLE_NOTIFICATIONS',
+  sourceFileNamePattern: 'SOURCE_FILE_NAME_PATTERN',
+  exclusionPatterns: 'EXCLUSION_PATTERNS',
+  enableTimeWindow: 'ENABLE_TIME_WINDOW',
+  syncWindowStart: 'SYNC_WINDOW_START',
+  syncWindowEnd: 'SYNC_WINDOW_END'
 };
 
 function updateSettings(settings) {
@@ -234,6 +288,9 @@ function getFiles() {
 }
 
 function runSync() {
+  if (!isWithinTimeWindow_()) {
+    return { success: true, result: { synced: 0, updated: 0, errors: 0, message: 'Outside sync time window — skipped' } };
+  }
   const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
   const result = appendMeetNotesToMasterRestAPI(docId);
 
@@ -294,6 +351,12 @@ function appendMeetNotesToMasterRestAPI(docId) {
   const updatedIds = [];
 
   for (const file of result.files) {
+    if (CONFIG.SOURCE_FILE_NAME_PATTERN && !matchesPattern_(file.name, CONFIG.SOURCE_FILE_NAME_PATTERN)) {
+      continue;
+    }
+    if (CONFIG.EXCLUSION_PATTERNS && isExcluded_(file.name, CONFIG.EXCLUSION_PATTERNS)) {
+      continue;
+    }
     const lastSyncTime = props.getProperty('SYNC_' + file.id);
 
     if (!lastSyncTime) {
@@ -571,6 +634,12 @@ function appendMeetNotesToMaster() {
   const updatedIds = [];
   
   for (const file of result.files) {
+    if (CONFIG.SOURCE_FILE_NAME_PATTERN && !matchesPattern_(file.name, CONFIG.SOURCE_FILE_NAME_PATTERN)) {
+      continue;
+    }
+    if (CONFIG.EXCLUSION_PATTERNS && isExcluded_(file.name, CONFIG.EXCLUSION_PATTERNS)) {
+      continue;
+    }
     const lastSyncTime = props.getProperty('SYNC_' + file.id);
     
     if (!lastSyncTime) {
