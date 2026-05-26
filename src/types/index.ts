@@ -20,6 +20,12 @@ export interface Settings {
   masterDocId: string;
   maxRetries: number;
   historySize: number;
+  enableNotifications: boolean;
+  sourceFileNamePattern: string;
+  exclusionPatterns: string;
+  enableTimeWindow: boolean;
+  syncWindowStart: string;
+  syncWindowEnd: string;
 }
 
 export interface SyncFile {
@@ -34,6 +40,7 @@ export interface StatusResponse {
   lastSync: string | null;
   docSize: number;
   isConfigured: boolean;
+  backendIntegrity?: string;
 }
 
 export interface ApiResponse<T = unknown> {

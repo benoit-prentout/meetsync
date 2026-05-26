@@ -5,3 +5,5 @@ dist
 .vscode
 .playwright-mcp
 .superpowers
+src/lib/backendChecksum.ts
+src/lib/bundledBackend.ts

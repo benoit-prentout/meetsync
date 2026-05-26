@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "update:checksum": "npx tsx scripts/compute-checksum.ts",
     "preview": "vite preview",
     "package": "npm run build && cd dist && zip -r ../meet-gemini-notebooklm.zip . && cd ..",
     "test": "vitest run",
@@ -31,6 +32,7 @@
     "jsdom": "^29.1.1",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
+    "tsx": "^4.22.3",
     "typescript": "^5.3.0",
     "vite": "^5.1.0",
     "vitest": "^4.1.6"
