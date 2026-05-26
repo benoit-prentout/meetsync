@@ -9,7 +9,7 @@ const CODEGS_PATH = resolve(__dirname, '../apps-script/Code.gs');
 
 function computeChecksum(content: string): string {
   const lines = content.split('\n');
-  const filtered = lines.filter(line => !line.includes('SCRIPT_INTEGRITY'));
+  const filtered = lines.filter(line => !/SCRIPT_INTEGRITY\s*=/.test(line));
   return createHash('sha256').update(filtered.join('\n')).digest('hex');
 }
 
