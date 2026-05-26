@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 const SCOPES = [
   'openid',
   'email',
+  'https://www.googleapis.com/auth/script.projects',
 ];
 
 export function useAuth() {

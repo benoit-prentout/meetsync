@@ -25,7 +25,8 @@
     "client_id": "445706616860-ni2amt25cs328v5n5nvgkh9mh6l5vb7k.apps.googleusercontent.com",
     "scopes": [
       "openid",
-      "email"
+      "email",
+      "https://www.googleapis.com/auth/script.projects"
     ]
   }
 }
