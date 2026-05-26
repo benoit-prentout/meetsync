@@ -101,4 +101,25 @@ describe('api - getDeploymentUrl / fetchApi', () => {
     const { ApiError, api } = await import('@/lib/api');
     await expect(api.getStatus('test-token')).rejects.toThrow(ApiError);
   });
+
+  it('passes through backendIntegrity from status response', async () => {
+    (chrome.storage.sync.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      deploymentUrl: 'https://script.google.com/macros/s/test/exec',
+    });
+    const responseData = {
+      success: true,
+      lastSync: null,
+      docSize: 0,
+      isConfigured: false,
+      backendIntegrity: 'abc123def456',
+    };
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => responseData,
+      text: async () => JSON.stringify(responseData),
+    });
+    const { api } = await import('@/lib/api');
+    const result = await api.getStatus('test-token');
+    expect((result as typeof responseData).backendIntegrity).toBe('abc123def456');
+  });
 });
