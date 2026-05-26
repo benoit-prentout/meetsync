@@ -61,13 +61,16 @@ export function Settings() {
   }, []);
 
   useEffect(() => {
-    if (!deploymentUrl || !accessToken) return;
+    if (!deploymentUrl || !accessToken) {
+      setBackendStatus('unknown');
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
         const status = await api.getStatus(accessToken);
         if (cancelled) return;
-        if (status.backendIntegrity && EXPECTED_BACKEND_HASH) {
+        if (status.backendIntegrity) {
           setBackendStatus(status.backendIntegrity === EXPECTED_BACKEND_HASH ? 'up-to-date' : 'update-available');
         } else {
           setBackendStatus('unknown');
