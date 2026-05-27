@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node --import tsx scripts/generate-bundled-files.ts && tsc && vite build",
     "update:checksum": "npx tsx scripts/compute-checksum.ts",
     "preview": "vite preview",
     "package": "npm run build && cd dist && zip -r ../meet-gemini-notebooklm.zip . && cd ..",

@@ -12,10 +12,12 @@ Two-layer project: a **Chrome MV3 extension** (React + TypeScript + Vite + Tailw
 ## Chrome Extension Commands
 
 ```bash
-npm run build        # Build extension → dist/
-npm test             # Run Vitest test suite (23 tests)
-npm run test:watch   # Watch mode
-npm run package      # Build + zip → meet-gemini-notebooklm.zip
+npm run build                       # Build extension → dist/
+npm test                            # Run Vitest test suite
+npm run test:watch                  # Watch mode
+npm run package                     # Build + zip → meet-gemini-notebooklm.zip
+npx vitest run src/lib/api.test.ts  # Run a single test file
+npx vitest run -t "test name"       # Run tests matching a name pattern
 ```
 
 Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer mode → Load unpacked).
@@ -48,8 +50,11 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 
 ### Chrome Extension
 
+- **Path alias**: `@` maps to `src/` — used throughout the codebase (`import { api } from '@/lib/api'`).
 - **Auth**: `chrome.identity.getAuthToken` with `openid email` scopes only. The extension token is used solely to verify identity in `validateCaller_`; Apps Script uses `ScriptApp.getOAuthToken()` for Drive/Docs.
-- **Config**: `deploymentUrl` stored in `chrome.storage.sync` — NOT in Zustand (intentional). Read via `getDeploymentUrl()` in `api.ts`.
+- **Config**: `deploymentUrl` is the source of truth in `chrome.storage.sync`. It is mirrored into Zustand by `App.tsx` on mount but is **not persisted** by the store's `partialize` — `chrome.storage.sync` is always the authoritative copy. `api.ts` reads it directly from storage via `getDeploymentUrl()`.
+- **Auto-sync** is driven by `src/background.ts` (MV3 service worker) via `chrome.alarms`. It reads `autoSyncEnabled` and `autoSyncIntervalMinutes` from `chrome.storage.sync` directly (no Zustand access from the service worker). Settings changes trigger `chrome.storage.onChanged` to reconfigure the alarm.
+- **State layer**: `useSettingsStore` (Zustand + `persist`) holds runtime UI state. `useApi` hook wraps `api.ts` calls and writes results into the store. `useAuth` manages the `chrome.identity` token lifecycle.
 - **First run**: `App.tsx` reads `chrome.storage.sync` on mount; renders `<SetupWizard />` if URL not set.
 - **SetupWizard ordering**: `setDeploymentUrl(url)` must be called AFTER `await signIn()` resolves — calling it before causes `App.tsx` to unmount the wizard mid-flow.
 - **OAuth client ID**: set in `public/manifest.json` under `oauth2.client_id`. Format: `<id>.apps.googleusercontent.com`.
@@ -71,13 +76,20 @@ Chrome extensions can't be navigated to directly (`chrome-extension://` URLs are
 npm run dev   # starts Vite dev server at http://localhost:5173
 ```
 
-Then open `http://localhost:5173/dashboard.html` in Claude Preview. Changes hot-reload instantly.
+Three dev entry points are available:
+
+| URL | Entry point | What it shows |
+|---|---|---|
+| `/dashboard.html` | `src/dashboard/main.tsx` (conditional mock) | Full auth + dashboard flow |
+| `/dashboard-dev.html` | `src/dashboard/dev-main.tsx` | `<Dashboard />` directly, mocked data |
+| `/popup-dev.html` | `src/popup/popup-dev-main.tsx` | `<Popup />` directly, mocked data |
+| `/wizard-dev.html` | `src/wizard-dev-main.tsx` | `<SetupWizard />` with scenario picker (success / HTML error / network error / auth error) |
 
 **How dev mode works:**
 - `src/dashboard/main.tsx` conditionally imports `src/dev-mocks.ts` when `import.meta.env.DEV` is true.
 - `src/dev-mocks.ts` stubs out `window.chrome` (storage, identity, tabs, runtime) and seeds the Zustand store with realistic fake data so all tabs render with content.
-- `src/dashboard/dev-main.tsx` is an alternate entry that renders `<Dashboard />` directly, bypassing the auth/setup flow entirely.
-- `dashboard-dev.html` points to `dev-main.tsx`; the main `dashboard.html` uses the conditional import path.
+- `src/dashboard/dev-main.tsx` renders `<Dashboard />` directly, bypassing the auth/setup flow.
+- `src/wizard-dev-main.tsx` inlines its own chrome mock and exposes a scenario picker to test different API response states.
 - Dev mocks are tree-shaken out of production builds — they never appear in `dist/`.
 
 **Verification workflow for UI changes:**

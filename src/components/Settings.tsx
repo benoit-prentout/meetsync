@@ -10,10 +10,10 @@ import { extractDocId, extractFolderId } from '@/lib/googleIds';
 import { api } from '@/lib/api';
 import { EXPECTED_BACKEND_HASH } from '@/lib/backendChecksum';
 import { deployBackendUpdate } from '@/lib/deployApi';
-import { BUNDLED_BACKEND_CODE } from '@/lib/bundledBackend';
+import { BUNDLED_BACKEND_CODE, BUNDLED_MANIFEST } from '@/lib/bundledBackend';
 
 export function Settings() {
-  const { settings, updateSetting, setError, error, isLoading, deploymentUrl, setDeploymentUrl } = useSettingsStore();
+  const { settings, updateSetting, setError, error, isLoading, deploymentUrl, setDeploymentUrl, scriptId, setScriptId } = useSettingsStore();
   const accessToken = useSettingsStore((state) => state.accessToken);
   const { updateSettings, getSettings } = useApi();
   const [saving, setSaving] = useState(false);
@@ -21,22 +21,27 @@ export function Settings() {
   const [autoSyncEnabled, setAutoSyncEnabledState] = useState(false);
   const [autoSyncInterval, setAutoSyncIntervalState] = useState(60);
   const [deploymentUrlInput, setDeploymentUrlInput] = useState('');
+  const [scriptIdInput, setScriptIdInput] = useState('');
   const [docIdError, setDocIdError] = useState<string | null>(null);
   const [folderIdError, setFolderIdError] = useState<string | null>(null);
   const [settingsSnapshot, setSettingsSnapshot] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [backendStatus, setBackendStatus] = useState<'checking' | 'up-to-date' | 'update-available' | 'unknown'>('checking');
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'up-to-date' | 'update-available' | 'unknown' | 'old-backend'>('checking');
   const [deploying, setDeploying] = useState(false);
   const [deployMessage, setDeployMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const handleDeploy = async () => {
     if (!deploymentUrl || !accessToken) return;
+    if (!scriptId) {
+      setDeployMessage({ type: 'error', text: 'Script project ID is required — set it in the Apps Script Deployment section below.' });
+      return;
+    }
     if (!window.confirm('This will replace the currently deployed backend code with the version bundled in this extension. Continue?')) return;
 
     setDeploying(true);
     setDeployMessage(null);
     try {
-      const result = await deployBackendUpdate(deploymentUrl, BUNDLED_BACKEND_CODE, accessToken);
+      const result = await deployBackendUpdate(scriptId, deploymentUrl, BUNDLED_BACKEND_CODE, BUNDLED_MANIFEST, accessToken);
       setDeployMessage({ type: 'success', text: `Deployed successfully (version ${result.versionNumber})` });
       setBackendStatus('up-to-date');
     } catch (err) {
@@ -57,10 +62,14 @@ export function Settings() {
     : false;
 
   useEffect(() => {
-    chrome.storage.sync.get(['autoSyncEnabled', 'autoSyncIntervalMinutes', 'deploymentUrl'], (result) => {
+    chrome.storage.sync.get(['autoSyncEnabled', 'autoSyncIntervalMinutes', 'deploymentUrl', 'scriptId'], (result) => {
       if (result.autoSyncEnabled !== undefined) setAutoSyncEnabledState(Boolean(result.autoSyncEnabled));
       if (result.autoSyncIntervalMinutes !== undefined) setAutoSyncIntervalState(Number(result.autoSyncIntervalMinutes));
       if (result.deploymentUrl) setDeploymentUrlInput(String(result.deploymentUrl));
+      if (result.scriptId) {
+        setScriptIdInput(String(result.scriptId));
+        setScriptId(String(result.scriptId));
+      }
     });
   }, []);
 
@@ -94,7 +103,7 @@ export function Settings() {
         if (status.backendIntegrity) {
           setBackendStatus(status.backendIntegrity === EXPECTED_BACKEND_HASH ? 'up-to-date' : 'update-available');
         } else {
-          setBackendStatus('unknown');
+          setBackendStatus('old-backend');
         }
       } catch {
         if (!cancelled) setBackendStatus('unknown');
@@ -156,6 +165,35 @@ export function Settings() {
             <p className="text-[10px] text-slate-400 truncate">{deploymentUrl}</p>
           )}
         </div>
+        <div className="space-y-2 mt-3">
+          <Label htmlFor="scriptId">Script Project ID</Label>
+          <p className="text-[10px] text-slate-400">Found in the Apps Script editor URL: <code className="text-slate-500">script.google.com/home/projects/…/edit</code></p>
+          <div className="flex items-center gap-2">
+            <Input
+              id="scriptId"
+              value={scriptIdInput}
+              onChange={(e) => setScriptIdInput(e.target.value)}
+              placeholder="1PZjo-m8yf49TFg5dk1vbWz2m5l5zeqTH72K4uBrtZKzOlWqOjxvuLQ02"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const trimmed = scriptIdInput.trim();
+                if (!trimmed) return;
+                chrome.storage.sync.set({ scriptId: trimmed });
+                setScriptId(trimmed);
+              }}
+              disabled={!scriptIdInput.trim() || scriptIdInput.trim() === (scriptId ?? '')}
+            >
+              Update
+            </Button>
+          </div>
+          {scriptId && scriptIdInput.trim() === scriptId && (
+            <p className="text-[10px] text-slate-400 truncate">{scriptId}</p>
+          )}
+        </div>
         {/* Backend Status */}
         <div className="mt-3 pt-3 border-t border-slate-100">
           <div className="flex items-center justify-between">
@@ -181,7 +219,20 @@ export function Settings() {
                 </div>
               )}
               {backendStatus === 'unknown' && (
-                <><span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" /><span className="text-red-600">Could not verify</span></>
+                <><span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" /><span className="text-red-600">Could not reach backend</span></>
+              )}
+              {backendStatus === 'old-backend' && (
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                  <span className="text-amber-700">Update available</span>
+                  <button
+                    onClick={handleDeploy}
+                    disabled={deploying}
+                    className="text-xs font-semibold text-[#1a73e8] hover:text-[#1557b0] disabled:opacity-50 ml-2"
+                  >
+                    {deploying ? 'Deploying...' : 'Deploy Update'}
+                  </button>
+                </div>
               )}
             </span>
           </div>

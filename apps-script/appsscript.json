@@ -15,5 +15,9 @@
     ]
   },
   "exceptionLogging": "STACKDRIVER",
-  "runtimeVersion": "V8"
+  "runtimeVersion": "V8",
+  "webapp": {
+    "access": "ANYONE",
+    "executeAs": "USER_DEPLOYING"
+  }
 }

@@ -6,6 +6,7 @@ interface SettingsState {
   isAuthenticated: boolean;
   accessToken: string | null;
   deploymentUrl: string | null;
+  scriptId: string | null;
   settings: Settings | null;
   lastSync: string | null;
   docSize: number;
@@ -16,6 +17,7 @@ interface SettingsState {
 
   setAuthenticated: (token: string) => void;
   setDeploymentUrl: (url: string | null) => void;
+  setScriptId: (id: string | null) => void;
   setSettings: (settings: Settings) => void;
   updateSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
   setHistory: (history: SyncEvent[]) => void;
@@ -33,6 +35,7 @@ export const useSettingsStore = create<SettingsState>()(
       isAuthenticated: false,
       accessToken: null,
       deploymentUrl: null,
+      scriptId: null,
       settings: null,
       lastSync: null,
       docSize: 0,
@@ -44,6 +47,7 @@ export const useSettingsStore = create<SettingsState>()(
       setAuthenticated: (token) => set({ accessToken: token, isAuthenticated: true }),
 
       setDeploymentUrl: (url) => set({ deploymentUrl: url }),
+      setScriptId: (id) => set({ scriptId: id }),
 
       setSettings: (settings) => set({ settings }),
       

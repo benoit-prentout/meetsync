@@ -23,6 +23,7 @@ vi.mock('@/store/settingsStore', () => ({
     history: [],
     isLoading: false,
     settings: { masterDocId: 'doc123', archiveFolderId: 'folder123' },
+    setAuthenticated: vi.fn(),
   })),
 }));
 
@@ -32,12 +33,16 @@ describe('Popup', () => {
     (chrome.tabs.create as ReturnType<typeof vi.fn>).mockReset();
     (chrome.runtime as unknown as Record<string, unknown>).getURL =
       vi.fn().mockReturnValue('chrome-extension://abc/dashboard.html');
+    // Simulate no cached token — resolves auth check immediately
+    (chrome.identity.getAuthToken as ReturnType<typeof vi.fn>).mockImplementation(
+      (_opts: unknown, cb: (token: string | undefined) => void) => cb(undefined)
+    );
   });
 
-  it('shows Connect Google Account when not authenticated', () => {
+  it('shows Connect Google Account when not authenticated', async () => {
     render(<Popup />);
     expect(
-      screen.getByRole('button', { name: /connect google account/i })
+      await screen.findByRole('button', { name: /connect google account/i })
     ).toBeInTheDocument();
   });
 
@@ -62,7 +67,7 @@ describe('Popup', () => {
       signOut: vi.fn(),
     });
     render(<Popup />);
-    expect(screen.getByText('Last Sync')).toBeInTheDocument();
+    expect(await screen.findByText('Last Sync')).toBeInTheDocument();
     expect(screen.getByText('Doc Size')).toBeInTheDocument();
     expect(screen.getByText('Files')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
@@ -76,7 +81,7 @@ describe('Popup', () => {
       signOut: vi.fn(),
     });
     render(<Popup />);
-    await userEvent.click(screen.getByRole('button', { name: /open dashboard/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /open dashboard/i }));
     expect(chrome.tabs.create).toHaveBeenCalledWith({
       url: 'chrome-extension://abc/dashboard.html',
     });
@@ -97,9 +102,10 @@ describe('Popup', () => {
       history: [],
       isLoading: false,
       settings: null,
+      setAuthenticated: vi.fn(),
     });
     render(<Popup />);
-    expect(screen.getByRole('button', { name: /sync now/i })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: /sync now/i })).toBeDisabled();
   });
 
   it('calls signOut when Sign out is clicked', async () => {
@@ -111,7 +117,7 @@ describe('Popup', () => {
       signOut,
     });
     render(<Popup />);
-    await userEvent.click(screen.getByRole('button', { name: /sign out/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /sign out/i }));
     expect(signOut).toHaveBeenCalled();
   });
 });

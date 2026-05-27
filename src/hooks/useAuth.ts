@@ -2,22 +2,26 @@ import { useCallback } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { api } from '@/lib/api';
 
-const SCOPES = [
-  'openid',
-  'email',
-  'https://www.googleapis.com/auth/script.projects',
-];
-
 export function useAuth() {
   const { setAuthenticated, setLoading, setError, accessToken, isAuthenticated } = useSettingsStore();
   
   const signIn = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
+      // Clear any cached token to force re-auth with current manifest scopes
+      const oldToken = await new Promise<string | undefined>((resolve) => {
+        chrome.identity.getAuthToken({ interactive: false }, (token) => resolve(token));
+      });
+      if (oldToken) {
+        await new Promise<void>((resolve) => {
+          chrome.identity.removeCachedAuthToken({ token: oldToken }, () => resolve());
+        });
+      }
+
       const token = await new Promise<string>((resolve, reject) => {
-        chrome.identity.getAuthToken({ interactive: true, scopes: SCOPES }, (authToken) => {
+        chrome.identity.getAuthToken({ interactive: true }, (authToken) => {
           if (chrome.runtime.lastError) {
             reject(new Error(chrome.runtime.lastError.message));
           } else if (authToken) {

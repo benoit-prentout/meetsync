@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApi } from '@/hooks/useApi';
@@ -12,9 +12,27 @@ function openDashboardTab() {
 
 export function Popup() {
   const [syncResult, setSyncResult] = useState<{ filesProcessed: number } | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
   const { isAuthenticated, signIn, signOut } = useAuth();
   const { sync } = useApi();
-  const { lastSync, docSize, files, history, isLoading, settings } = useSettingsStore();
+  const { lastSync, docSize, files, history, isLoading, settings, setAuthenticated } = useSettingsStore();
+
+  useEffect(() => {
+    chrome.identity.getAuthToken({ interactive: false }, (token) => {
+      if (!chrome.runtime.lastError && token) {
+        setAuthenticated(token);
+      }
+      setAuthChecking(false);
+    });
+  }, [setAuthenticated]);
+
+  if (authChecking) {
+    return (
+      <div className="w-60 h-24 flex items-center justify-center">
+        <RefreshCw className="w-5 h-5 text-slate-400 motion-safe:animate-spin" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (

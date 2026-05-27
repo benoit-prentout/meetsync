@@ -1,10 +1,5 @@
 import { ApiError } from '@/lib/api';
 
-function extractScriptId(deploymentUrl: string): string | null {
-  const match = deploymentUrl.match(/\/macros\/s\/([^/]+)/);
-  return match ? match[1] : null;
-}
-
 async function scriptsApiFetch<T>(
   path: string,
   options: RequestInit,
@@ -22,8 +17,9 @@ async function scriptsApiFetch<T>(
 
   if (!response.ok) {
     const body = await response.text().catch(() => '');
+    console.error('Apps Script API error:', { path, method: options.method || 'GET', status: response.status, body });
     throw new ApiError(
-      `Apps Script API request failed (${response.status}): ${body.slice(0, 200)}`,
+      `Apps Script API ${options.method || 'GET'} ${path} failed (${response.status}): ${body.slice(0, 1000)}`,
       response.status
     );
   }
@@ -53,16 +49,30 @@ interface Deployment {
 
 async function updateContent(
   scriptId: string,
-  source: string,
+  codeSource: string,
+  manifestSource: string,
+  existingFiles: Array<{ name: string; type: string; id?: string }>,
   accessToken: string
 ): Promise<void> {
-  const body: ProjectContent = {
-    files: [{
+  const existingCode = existingFiles.find(f => f.name === 'Code' && f.type === 'SERVER_JS');
+  const existingManifest = existingFiles.find(f => f.name === 'appsscript' && f.type === 'JSON');
+
+  const files: Array<{ name: string; type: string; source: string; id?: string }> = [
+    {
       name: 'Code',
       type: 'SERVER_JS',
-      source,
-    }],
-  };
+      source: codeSource,
+      ...(existingCode?.id ? { id: existingCode.id } : {}),
+    },
+    {
+      name: 'appsscript',
+      type: 'JSON',
+      source: manifestSource,
+      ...(existingManifest?.id ? { id: existingManifest.id } : {}),
+    },
+  ];
+
+  const body = { files };
   await scriptsApiFetch<ProjectContent>(
     `projects/${scriptId}/content`,
     {
@@ -119,30 +129,57 @@ async function updateDeployment(
 }
 
 export async function deployBackendUpdate(
+  scriptId: string,
   deploymentUrl: string,
   bundledCode: string,
+  bundledManifest: string,
   accessToken: string
 ): Promise<{ versionNumber: number }> {
-  const scriptId = extractScriptId(deploymentUrl);
   if (!scriptId) {
-    throw new ApiError('Invalid deployment URL: could not extract script ID');
+    throw new ApiError('Script project ID is required');
   }
 
-  // 1. Update the script content
-  await updateContent(scriptId, bundledCode, accessToken);
+  // Verify connectivity: try to fetch existing project content first
+  let existingFiles: Array<{ name: string; type: string }> = [];
+  try {
+    const existing = await scriptsApiFetch<{ files?: Array<{ name: string; type: string; id?: string }> }>(
+      `projects/${scriptId}/content`,
+      { method: 'GET' },
+      accessToken
+    );
+    existingFiles = existing.files || [];
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw new ApiError('Could not access script project. Check that the deployment URL is correct and the Apps Script API is enabled in your Google Cloud project.');
+  }
+
+  // 1. Update the script content (code + manifest)
+  await updateContent(scriptId, bundledCode, bundledManifest, existingFiles, accessToken);
 
   // 2. Create a new version
   const version = await createVersion(scriptId, accessToken);
 
   // 3. Find the matching deployment and update it
   const deployments = await listDeployments(scriptId, accessToken);
-  const target = deployments.find(d =>
-    d.entryPoints?.some(ep => ep.url === deploymentUrl)
-  );
+
+  // Extract the deployment ID from the URL path — `/macros/s/{deploymentId}/exec`
+  const urlMatch = deploymentUrl.match(/\/macros\/s\/([^/]+)/);
+  const deploymentIdFromUrl = urlMatch ? urlMatch[1] : null;
+
+  // First try matching by deploymentId (more robust), then fall back to URL matching
+  let target = deploymentIdFromUrl
+    ? deployments.find(d => d.deploymentId === deploymentIdFromUrl)
+    : undefined;
+
+  if (!target) {
+    target = deployments.find(d =>
+      d.entryPoints?.some(ep => ep.url === deploymentUrl)
+    );
+  }
 
   if (!target) {
     throw new ApiError(
-      'Could not find a deployment matching the current URL. The deployment may have been deleted.'
+      `Could not find a deployment matching the current URL (found ${deployments.length} deployment(s), none matched).`
     );
   }
 

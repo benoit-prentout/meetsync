@@ -8,9 +8,11 @@ import { MeetSyncMark } from '@/components/Brand';
 
 export function SetupWizard() {
   const { signIn } = useAuth();
-  const { setDeploymentUrl } = useSettingsStore();
+  const { setDeploymentUrl, setScriptId } = useSettingsStore();
   const [url, setUrl] = useState('');
+  const [scriptIdValue, setScriptIdValue] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
+  const [scriptIdError, setScriptIdError] = useState<string | null>(null);
   const [phase, setPhase] = useState<'idle' | 'connecting' | 'verifying'>('idle');
   const [error, setError] = useState<string | null>(null);
 
@@ -23,10 +25,23 @@ export function SetupWizard() {
     return null;
   }
 
+  function validateScriptId(value: string): string | null {
+    const trimmed = value.trim();
+    if (!trimmed) return 'Script project ID is required';
+    if (trimmed.length < 20) return 'Script project ID looks too short';
+    return null;
+  }
+
   function handleUrlChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value;
     setUrl(value);
     setUrlError(validateUrl(value));
+  }
+
+  function handleScriptIdChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    setScriptIdValue(value);
+    setScriptIdError(validateScriptId(value));
   }
 
   async function handleSave() {
@@ -35,12 +50,17 @@ export function SetupWizard() {
       setUrlError(validationError);
       return;
     }
+    const sidError = validateScriptId(scriptIdValue);
+    if (sidError) {
+      setScriptIdError(sidError);
+      return;
+    }
     setPhase('connecting');
     setError(null);
     useSettingsStore.getState().setError(null);
     try {
       await new Promise<void>((resolve, reject) => {
-        chrome.storage.sync.set({ deploymentUrl: url.trim() }, () => {
+        chrome.storage.sync.set({ deploymentUrl: url.trim(), scriptId: scriptIdValue.trim() }, () => {
           if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
           else resolve();
         });
@@ -52,8 +72,9 @@ export function SetupWizard() {
       await api.getStatus(token);
       // Only transition to Dashboard after connection test succeeds
       setDeploymentUrl(url.trim());
+      setScriptId(scriptIdValue.trim());
     } catch (err) {
-      chrome.storage.sync.remove('deploymentUrl');
+      chrome.storage.sync.remove(['deploymentUrl', 'scriptId']);
       if (err instanceof TypeError) {
         setError('Could not reach the deployment URL — check the URL and your internet connection.');
       } else if (err instanceof Error && err.message.includes('HTML')) {
@@ -98,6 +119,20 @@ export function SetupWizard() {
             />
             {urlError && (
               <p className="text-sm text-red-600">{urlError}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="script-id">Script Project ID</Label>
+            <p className="text-[11px] text-slate-400">Found in the Apps Script editor URL under your project name, after <code className="text-slate-500">/home/projects/</code>.</p>
+            <Input
+              id="script-id"
+              placeholder="1PZjo-m8yf49TFg5dk1vbWz2m5l5zeqTH72K4uBrtZKzOlWqOjxvuLQ02"
+              value={scriptIdValue}
+              onChange={handleScriptIdChange}
+              disabled={phase !== 'idle'}
+            />
+            {scriptIdError && (
+              <p className="text-sm text-red-600">{scriptIdError}</p>
             )}
           </div>
           {error && (

@@ -46,6 +46,12 @@ useSettingsStore.setState({
     maxAgeDays: 90,
     maxRetries: 3,
     historySize: 20,
+    enableNotifications: true,
+    sourceFileNamePattern: '',
+    exclusionPatterns: '',
+    enableTimeWindow: false,
+    syncWindowStart: '09:00',
+    syncWindowEnd: '17:00',
   },
   history: [
     {

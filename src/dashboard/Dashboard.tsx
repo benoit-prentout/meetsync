@@ -77,7 +77,7 @@ export function Dashboard({ onSignOut }: { onSignOut?: () => void }) {
     }`;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="h-screen bg-slate-50 flex flex-col">
       {/* Top bar */}
       <header className="h-12 bg-white border-b border-slate-200 flex items-center px-5 gap-3 shrink-0">
         <MeetSyncMark size={24} />

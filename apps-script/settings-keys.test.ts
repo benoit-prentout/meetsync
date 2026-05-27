@@ -12,6 +12,12 @@ const SETTINGS_KEY_MAP: Record<string, string> = {
   masterDocId: 'MASTER_DOC_ID',
   maxRetries: 'MAX_RETRIES',
   historySize: 'HISTORY_SIZE',
+  enableNotifications: 'ENABLE_NOTIFICATIONS',
+  sourceFileNamePattern: 'SOURCE_FILE_NAME_PATTERN',
+  exclusionPatterns: 'EXCLUSION_PATTERNS',
+  enableTimeWindow: 'ENABLE_TIME_WINDOW',
+  syncWindowStart: 'SYNC_WINDOW_START',
+  syncWindowEnd: 'SYNC_WINDOW_END',
 };
 
 // Replicate the Settings TypeScript interface keys
@@ -26,6 +32,12 @@ const TYPESCRIPT_SETTINGS_KEYS = [
   'masterDocId',
   'maxRetries',
   'historySize',
+  'enableNotifications',
+  'sourceFileNamePattern',
+  'exclusionPatterns',
+  'enableTimeWindow',
+  'syncWindowStart',
+  'syncWindowEnd',
 ];
 
 describe('Settings key mapping contract', () => {
