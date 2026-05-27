@@ -15,18 +15,17 @@ function computeChecksum(content: string): string {
 
 function main() {
   const content = readFileSync(CODEGS_PATH, 'utf-8');
-  const hash = computeChecksum(content);
-
-  const updated = content.replace(
-    /(SCRIPT_INTEGRITY\s*=\s*')([^']*)(')/,
-    `$1${hash}$3`
-  );
-
-  if (updated === content) {
+  const regex = /(SCRIPT_INTEGRITY\s*=\s*')([^']*)(')/;
+  if (!regex.test(content)) {
     console.error('ERROR: Could not find SCRIPT_INTEGRITY constant in Code.gs');
     process.exit(1);
   }
-
+  const hash = computeChecksum(content);
+  const updated = content.replace(regex, `$1${hash}$3`);
+  if (updated === content) {
+    console.log('Checksum already up to date: ' + hash);
+    return;
+  }
   writeFileSync(CODEGS_PATH, updated, 'utf-8');
   console.log(`Checksum updated: ${hash}`);
 }
