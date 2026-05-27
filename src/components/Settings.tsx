@@ -9,6 +9,8 @@ import { useApi } from '@/hooks/useApi';
 import { extractDocId, extractFolderId } from '@/lib/googleIds';
 import { api } from '@/lib/api';
 import { EXPECTED_BACKEND_HASH } from '@/lib/backendChecksum';
+import { deployBackendUpdate } from '@/lib/deployApi';
+import { BUNDLED_BACKEND_CODE } from '@/lib/bundledBackend';
 
 export function Settings() {
   const { settings, updateSetting, setError, error, isLoading, deploymentUrl, setDeploymentUrl } = useSettingsStore();
@@ -24,6 +26,25 @@ export function Settings() {
   const [settingsSnapshot, setSettingsSnapshot] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'up-to-date' | 'update-available' | 'unknown'>('checking');
+  const [deploying, setDeploying] = useState(false);
+  const [deployMessage, setDeployMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleDeploy = async () => {
+    if (!deploymentUrl || !accessToken) return;
+    if (!window.confirm('This will replace the currently deployed backend code with the version bundled in this extension. Continue?')) return;
+
+    setDeploying(true);
+    setDeployMessage(null);
+    try {
+      const result = await deployBackendUpdate(deploymentUrl, BUNDLED_BACKEND_CODE, accessToken);
+      setDeployMessage({ type: 'success', text: `Deployed successfully (version ${result.versionNumber})` });
+      setBackendStatus('up-to-date');
+    } catch (err) {
+      setDeployMessage({ type: 'error', text: err instanceof Error ? err.message : 'Deploy failed' });
+    } finally {
+      setDeploying(false);
+    }
+  };
 
   useEffect(() => {
     if (settings) {
@@ -150,6 +171,13 @@ export function Settings() {
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
                   <span className="text-amber-700">Update available</span>
+                  <button
+                    onClick={handleDeploy}
+                    disabled={deploying}
+                    className="text-xs font-semibold text-[#1a73e8] hover:text-[#1557b0] disabled:opacity-50 ml-2"
+                  >
+                    {deploying ? 'Deploying...' : 'Deploy Update'}
+                  </button>
                 </div>
               )}
               {backendStatus === 'unknown' && (
@@ -157,6 +185,11 @@ export function Settings() {
               )}
             </span>
           </div>
+          {deployMessage && (
+            <p className={`mt-2 text-xs ${deployMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+              {deployMessage.text}
+            </p>
+          )}
         </div>
       </div>
 
