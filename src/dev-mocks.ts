@@ -20,7 +20,7 @@ localStorage.removeItem('meet-gemini-storage');
     },
     removeCachedAuthToken: (_opts: object, cb?: () => void) => { cb?.(); },
   },
-  runtime: { lastError: undefined },
+  runtime: { lastError: undefined, getManifest: () => ({ version: '0.0.0-dev' }) },
   tabs: { create: () => {} },
 };
 

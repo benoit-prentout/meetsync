@@ -82,7 +82,7 @@ export function Dashboard({ onSignOut }: { onSignOut?: () => void }) {
       {/* Top bar */}
       <header className="h-12 bg-white border-b border-slate-200 flex items-center px-5 gap-3 shrink-0">
         <MeetSyncMark size={24} />
-        <span className="font-semibold text-slate-900 text-sm">MeetSync for NotebookLM</span>
+        <span className="font-semibold text-slate-900 text-sm">MeetSync <span className="font-normal text-slate-400">{chrome.runtime.getManifest().version}</span></span>
         <div className="ml-auto flex items-center gap-3">
           {lastEvent && (
             <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
@@ -126,7 +126,7 @@ export function Dashboard({ onSignOut }: { onSignOut?: () => void }) {
           <div className="border-t border-slate-200 mx-3 my-2" />
           <div className="px-4 pb-2">
             <button
-              onClick={() => chrome.tabs.create({ url: 'https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm' })}
+              onClick={() => chrome.tabs.create({ url: 'https://github.com/benoit-prentout/meetsync' })}
               className="flex items-center gap-1.5 text-[10px] text-slate-400 hover:text-slate-600 transition-colors cursor-pointer w-full"
             >
               <Github className="w-3 h-3" />

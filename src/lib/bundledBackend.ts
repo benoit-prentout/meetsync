@@ -541,7 +541,7 @@ function insertWelcomeContent() {
   footer.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
 
   const githubLink = body.appendParagraph('Github Repository');
-  githubLink.setLinkUrl('https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm');
+  githubLink.setLinkUrl('https://github.com/benoit-prentout/meetsync');
   githubLink.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
   githubLink.setFontSize(8);
   githubLink.setAttributes({[DocumentApp.Attribute.FOREGROUND_COLOR]: '#70757a'});
@@ -568,7 +568,7 @@ function showHelp() {
       <p style="font-size: 0.9em;"><b>Pro Tip:</b> Add this document to a <a href="https://notebooklm.google.com" target="_blank">NotebookLM</a> notebook and remember to <b>Refresh</b> the source after syncing!</p>
       
       <div style="text-align: center; margin: 10px 0;">
-        <a href="https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm" target="_blank" style="color: #70757a; text-decoration: none; font-size: 0.8em; border-bottom: 1px solid #70757a;">View on GitHub</a>
+        <a href="https://github.com/benoit-prentout/meetsync" target="_blank" style="color: #70757a; text-decoration: none; font-size: 0.8em; border-bottom: 1px solid #70757a;">View on GitHub</a>
       </div>
 
       <hr style="border: 0; border-top: 1px solid #e8eaed; margin: 15px 0;">

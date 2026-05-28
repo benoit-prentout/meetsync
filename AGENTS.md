@@ -6,6 +6,14 @@
 - **Apps Script backend** (`apps-script/Code.gs`): ~1080 lines of Google Apps Script, deployed manually by copy-paste into the Apps Script editor.
 - `CLAUDE.md` has the authoritative detailed reference — this file captures only what's easy to miss.
 
+## GitHub Releases
+
+Tag a commit with `v*` to trigger the release workflow (`.github/workflows/release.yml`):
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+This builds the extension, zips it, and creates a GitHub Release with the zip attached.
+
 ## Quick Commands
 
 ```bash
@@ -56,6 +64,14 @@ The extension can push Code.gs updates via the Apps Script REST API:
 5. `chrome.identity.getAuthToken` ignores the `scopes` parameter in modern Chrome — use manifest scopes only.
 6. Deployment matching uses `deploymentId` extracted from the URL (`/macros/s/{id}/exec`) rather than full URL comparison, which is fragile to trailing slashes and encoding differences.
 7. Content update must send BOTH `Code.gs` (SERVER_JS) and `appsscript.json` (JSON) with existing file IDs from the GET step. Missing file IDs can cause 400 errors.
+
+## Version Display
+
+The extension version (`chrome.runtime.getManifest().version`) is shown in the popup header and dashboard header. The `getManifest` mock is stubbed in both `src/dev-mocks.ts` and `src/test/setup.ts`.
+
+## Privacy Policy
+
+`PRIVACY.md` at repo root covers data handling. The extension does not send user data to third parties — all communication is with the user's own Apps Script backend.
 
 ## Extension Auth & Token Flow
 

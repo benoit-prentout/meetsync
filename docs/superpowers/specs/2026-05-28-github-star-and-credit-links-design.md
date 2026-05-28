@@ -16,6 +16,6 @@ Add a GitHub "Star on GitHub" link across all extension pages, plus an "open sou
 
 - Use Lucide `Github` icon (already in the project)
 - All links open via `chrome.tabs.create()` to avoid `chrome-extension://` restrictions
-- GitHub URL: `https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm`
+- GitHub URL: `https://github.com/benoit-prentout/meetsync`
 - LinkedIn URL: `https://www.linkedin.com/in/prentout-benoit/`
 - Style follows existing UI patterns (text-xs, text-slate-400 hover states, etc.)

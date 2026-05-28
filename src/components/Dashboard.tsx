@@ -33,7 +33,7 @@ export function Dashboard() {
       <div className="min-h-screen bg-background p-8">
         <Card className="max-w-md mx-auto">
           <CardHeader>
-            <CardTitle>MeetSync for NotebookLM</CardTitle>
+            <CardTitle>MeetSync</CardTitle>
             <CardDescription>
               Connect your Google account to sync your meeting notes
             </CardDescription>
@@ -54,7 +54,7 @@ export function Dashboard() {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold">MeetSync for NotebookLM</h1>
+          <h1 className="text-xl font-bold">MeetSync</h1>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={signOut}>
               <LogOut className="w-4 h-4 mr-2" />

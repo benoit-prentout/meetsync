@@ -34,7 +34,7 @@ This guide walks you through setting up Google Cloud to enable OAuth for the Chr
 1. Go to **APIs & Services** → **OAuth consent screen**
 2. Select **External** user type, click **Create**
 3. Fill in the required fields:
-   - **App name**: Meet Gemini to NotebookLM
+   - **App name**: MeetSync
    - **User support email**: your email
    - **Developer contact email**: your email
 4. Click **Save and Continue**
@@ -61,7 +61,7 @@ Before creating OAuth credentials, you need the Chrome extension's ID:
 1. Go to **APIs & Services** → **Credentials**
 2. Click **Create Credentials** → **OAuth client ID**
 3. Application type: **Chrome Extension**
-4. Name: `Meet Gemini to NotebookLM`
+4. Name: `MeetSync`
 5. Under **Item ID**, paste the extension ID from step 4
 6. Click **Create**
 7. Copy the **Client ID** (format: `XXXXXXXXXXXX-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com`)

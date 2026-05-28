@@ -247,8 +247,8 @@ export function Help() {
             NotebookLM — add your master doc as a source
           </a>
           <a
-            href="https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm"
-            onClick={(e) => { e.preventDefault(); chrome.tabs.create({ url: 'https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm' }); }}
+            href="https://github.com/benoit-prentout/meetsync"
+            onClick={(e) => { e.preventDefault(); chrome.tabs.create({ url: 'https://github.com/benoit-prentout/meetsync' }); }}
             className="flex items-center gap-2 text-xs text-[#1a73e8] hover:underline"
           >
             <ExternalLink className="w-3 h-3" />

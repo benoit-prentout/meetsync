@@ -1,10 +1,9 @@
 <p align="center">
-  <img src="assets/branding/hero.png" alt="MeetSync for NotebookLM" width="800">
-</p>
+  <img src="assets/branding/hero.png" alt="MeetSync" width="800">
 
-# MeetSync for NotebookLM
+# MeetSync
 
-Automatically consolidate all your **Google Meet "Notes by Gemini"** into a single **Master Google Doc** — a living, unlimited knowledge base for **NotebookLM**.
+Automatically consolidate all your **Google Meet notes** into a single **Master Google Doc** — a living, unlimited knowledge base for NotebookLM or any other AI tool.
 
 ---
 
@@ -19,23 +18,27 @@ The easiest way to use this tool is to copy the pre-configured template:
 
 ---
 
-## Quick Start (Chrome Extension)
+## Install from Releases
 
-For developers who want to self-host the Chrome extension:
+1. Go to the **[Releases page](https://github.com/benoit-prentout/meetsync/releases)**
+2. Download the latest `meet-gemini-notebooklm.zip`
+3. Unzip it somewhere on your machine
+4. Open Chrome to `chrome://extensions`
+5. Enable **Developer mode** (toggle in the top-right corner)
+6. Click **Load unpacked** and select the unzipped folder
+7. Complete the setup wizard with your deployment URL and script project ID
 
-1. **Fork** this repository
-2. **Create OAuth credentials** — see [Google Cloud Setup](docs/google-cloud-setup.md)
-3. **Add your client ID** — edit `public/manifest.json` → `oauth2.client_id`
-4. **Build**: `npm install && npm run build`
-5. **Load in Chrome**: go to `chrome://extensions` → Developer mode → Load unpacked → select `dist/`
-6. **Configure**: the extension opens a Setup wizard — enter your **Deployment URL** (from the web app `/macros/s/{id}/exec`) and your **Script Project ID** (from the editor `/home/projects/{scriptId}/edit`). These are separate identifiers.
-7. **Auto-deploy backend**: In Settings, click **Deploy Backend** to push the latest `Code.gs` directly via the Apps Script API — or manually copy it if you prefer.
+### First-time setup (one per user)
+
+1. **Create OAuth credentials** — follow [Google Cloud Setup](docs/google-cloud-setup.md)
+2. **Deploy the Apps Script backend** — copy `apps-script/Code.gs` into an Apps Script project bound to your master Google Doc, enable Drive + Docs APIs, and deploy as a web app. Or use the **Deploy Backend** button in extension Settings for auto-deploy.
+3. **Enter your deployment URL** and **script project ID** in the extension's setup wizard.
 
 ---
 
 ## 🏗 Why this tool?
 
-NotebookLM is powerful, but it limits the number of sources you can add (50 sources max). By grouping months of meetings (yours and your team's) into a single "brain" document, you enable the AI to make long-term connections without ever hitting source limits.
+NotebookLM limits its sources to 50. By grouping months of meetings into a single document, you enable any AI tool to make long-term connections without ever hitting source limits.
 
 ### ✨ Features
 

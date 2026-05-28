@@ -100,7 +100,7 @@ export function SetupWizard() {
         <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
           <MeetSyncMark size={28} />
           <div>
-            <h2 className="text-sm font-semibold text-slate-900 leading-tight">MeetSync for NotebookLM</h2>
+            <h2 className="text-sm font-semibold text-slate-900 leading-tight">MeetSync</h2>
             <p className="text-[11px] text-slate-500 mt-0.5">Setup required</p>
           </div>
         </div>
@@ -152,7 +152,7 @@ export function SetupWizard() {
               href="#"
               onClick={(e) => {
                 e.preventDefault();
-                chrome.tabs.create({ url: 'https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm/blob/main/docs/google-cloud-setup.md' });
+                chrome.tabs.create({ url: 'https://github.com/benoit-prentout/meetsync/blob/main/docs/google-cloud-setup.md' });
               }}
               className="underline hover:text-slate-600 transition-colors"
             >
@@ -163,7 +163,7 @@ export function SetupWizard() {
       </div>
       <div className="mt-2 text-center">
         <button
-          onClick={() => chrome.tabs.create({ url: 'https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm' })}
+          onClick={() => chrome.tabs.create({ url: 'https://github.com/benoit-prentout/meetsync' })}
           className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
         >
           <Github className="w-3 h-3" />

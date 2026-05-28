@@ -39,7 +39,7 @@ export function Popup() {
       <div className="w-60 p-6 flex flex-col items-center gap-4">
         <MeetSyncMark size={40} />
         <div className="text-center">
-          <p className="font-semibold text-slate-900 text-sm">MeetSync for NotebookLM</p>
+          <p className="font-semibold text-slate-900 text-sm">MeetSync</p>
           <p className="text-xs text-slate-500 mt-1">
             Connect your Google account to sync your meeting notes
           </p>
@@ -81,7 +81,7 @@ export function Popup() {
             <path d="M15 8v8H5V8h10m1-2H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4V7c0-.55-.45-1-1-1z" />
           </svg>
         </div>
-        <span className="text-white font-semibold text-xs">MeetSync</span>
+        <span className="text-white font-semibold text-xs">MeetSync <span className="font-normal opacity-60">{chrome.runtime.getManifest().version}</span></span>
       </div>
 
       {/* 2×2 stat grid */}
@@ -147,7 +147,7 @@ export function Popup() {
       {/* Footer */}
       <div className="border-t border-slate-100 px-3 py-2 flex items-center justify-between">
         <button
-          onClick={() => chrome.tabs.create({ url: 'https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm' })}
+          onClick={() => chrome.tabs.create({ url: 'https://github.com/benoit-prentout/meetsync' })}
           className="text-[9px] text-slate-400 hover:text-slate-600 transition-colors cursor-pointer flex items-center gap-1"
         >
           <Github className="w-2.5 h-2.5" />

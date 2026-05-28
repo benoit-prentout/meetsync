@@ -23,6 +23,7 @@ const chromeMock = {
   },
   runtime: {
     lastError: undefined as chrome.runtime.LastError | undefined,
+    getManifest: vi.fn(() => ({ version: '0.0.0-test' })),
   },
   tabs: {
     create: vi.fn(),

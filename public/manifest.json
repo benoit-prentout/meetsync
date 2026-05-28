@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "MeetSync for NotebookLM",
+  "name": "MeetSync",
   "version": "1.0.0",
-  "description": "Auto-sync your Google Meet \"Notes by Gemini\" into a master Google Doc — a knowledge base for NotebookLM.",
+  "description": "Auto-sync your Google Meet notes into a master Google Doc — your living knowledge base for any AI tool.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

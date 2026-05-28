@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Two-layer project: a **Chrome MV3 extension** (React + TypeScript + Vite + Tailwind + shadcn/ui) and a **Google Apps Script web app** backend. The extension lets users configure and monitor syncing of Google Meet "Notes by Gemini" into a master Google Doc for use as a NotebookLM source.
+Two-layer project: a **Chrome MV3 extension** (React + TypeScript + Vite + Tailwind + shadcn/ui) and a **Google Apps Script web app** backend. The extension lets users configure and monitor syncing of Google Meet notes into a master Google Doc for use with any AI tool.
 
 - Extension source: `src/` — built with `npm run build`, output to `dist/`
 - Backend: `apps-script/Code.gs` (~1080 lines) — deployed manually via Apps Script editor
@@ -33,7 +33,7 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 
 ### Extension
 1. `npm run build` (or `npm run package` for a zip).
-2. Load `dist/` unpacked in Chrome, or upload zip to Chrome Web Store.
+2. Load `dist/` unpacked in Chrome, or attach zip to a GitHub Release via the release workflow.
 3. OAuth client ID must be set in `public/manifest.json` before building.
 
 ## Architecture
@@ -52,13 +52,19 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 ### Chrome Extension
 
 - **Path alias**: `@` maps to `src/` — used throughout the codebase (`import { api } from '@/lib/api'`).
-- **Auth**: `chrome.identity.getAuthToken` with `openid email` scopes only. The extension token is used solely to verify identity in `validateCaller_`; Apps Script uses `ScriptApp.getOAuthToken()` for Drive/Docs.
+- **Auth**: `chrome.identity.getAuthToken` with scopes from `manifest.json` (`openid`, `email`, `script.projects`, `script.deployments` — the latter two for backend auto-deploy). The extension token is used solely to verify identity in `validateCaller_`; Apps Script uses `ScriptApp.getOAuthToken()` for Drive/Docs.
 - **Config**: `deploymentUrl` is the source of truth in `chrome.storage.sync`. It is mirrored into Zustand by `App.tsx` on mount but is **not persisted** by the store's `partialize` — `chrome.storage.sync` is always the authoritative copy. `api.ts` reads it directly from storage via `getDeploymentUrl()`.
 - **Auto-sync** is driven by `src/background.ts` (MV3 service worker) via `chrome.alarms`. It reads `autoSyncEnabled` and `autoSyncIntervalMinutes` from `chrome.storage.sync` directly (no Zustand access from the service worker). Settings changes trigger `chrome.storage.onChanged` to reconfigure the alarm.
 - **State layer**: `useSettingsStore` (Zustand + `persist`) holds runtime UI state. `useApi` hook wraps `api.ts` calls and writes results into the store. `useAuth` manages the `chrome.identity` token lifecycle.
 - **First run**: `App.tsx` reads `chrome.storage.sync` on mount; renders `<SetupWizard />` if URL not set.
 - **SetupWizard ordering**: `setDeploymentUrl(url)` must be called AFTER `await signIn()` resolves — calling it before causes `App.tsx` to unmount the wizard mid-flow.
 - **OAuth client ID**: set in `public/manifest.json` under `oauth2.client_id`. Format: `<id>.apps.googleusercontent.com`.
+
+### Distribution
+
+- **GitHub Releases**: tag `v*` triggers `.github/workflows/release.yml` → builds, zips, and attaches to a release
+- **`PRIVACY.md`**: covers data handling — no third-party data transmission
+- **Version**: shown in popup and dashboard headers via `chrome.runtime.getManifest().version`
 
 ### Key Entry Points
 
