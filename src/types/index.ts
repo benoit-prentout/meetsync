@@ -7,6 +7,7 @@ export interface SyncEvent {
   syncedNames?: string[];
   updatedNames?: string[];
   duration?: number;
+  docSize?: number;
 }
 
 export interface Settings {
@@ -41,6 +42,7 @@ export interface StatusResponse {
   docSize: number;
   isConfigured: boolean;
   backendIntegrity?: string;
+  archiveEvents?: ArchiveEvent[];
 }
 
 export interface ApiResponse<T = unknown> {
@@ -51,6 +53,12 @@ export interface ApiResponse<T = unknown> {
   settings?: Settings;
   history?: SyncEvent[];
   files?: SyncFile[];
+}
+
+export interface ArchiveEvent {
+  date: string;
+  sizeBefore: number;
+  reason: string;
 }
 
 export interface AnalyticsData {

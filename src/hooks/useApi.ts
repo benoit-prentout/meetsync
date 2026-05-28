@@ -3,7 +3,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { api } from '@/lib/api';
 
 export function useApi() {
-  const { accessToken, setLoading, setError, setStatus, setHistory, setFiles, setSettings } = useSettingsStore();
+  const { accessToken, setLoading, setError, setStatus, setHistory, setFiles, setSettings, setArchiveEvents } = useSettingsStore();
 
   const getStatus = useCallback(async () => {
     if (!accessToken) throw new Error('Not authenticated');
@@ -12,6 +12,7 @@ export function useApi() {
     try {
       const response = await api.getStatus(accessToken);
       setStatus(response.lastSync || '', response.docSize);
+      setArchiveEvents(response.archiveEvents ?? []);
       return response;
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to get status');
@@ -19,7 +20,7 @@ export function useApi() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, setLoading, setError, setStatus]);
+  }, [accessToken, setLoading, setError, setStatus, setArchiveEvents]);
 
   const getHistory = useCallback(async () => {
     if (!accessToken) throw new Error('Not authenticated');

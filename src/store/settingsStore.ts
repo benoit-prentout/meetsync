@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Settings, SyncEvent, SyncFile } from '@/types';
+import type { Settings, SyncEvent, SyncFile, ArchiveEvent } from '@/types';
 
 interface SettingsState {
   isAuthenticated: boolean;
@@ -12,6 +12,7 @@ interface SettingsState {
   docSize: number;
   history: SyncEvent[];
   files: SyncFile[];
+  archiveEvents: ArchiveEvent[];
   isLoading: boolean;
   error: string | null;
 
@@ -23,6 +24,7 @@ interface SettingsState {
   setHistory: (history: SyncEvent[]) => void;
   addToHistory: (event: SyncEvent) => void;
   setFiles: (files: SyncFile[]) => void;
+  setArchiveEvents: (events: ArchiveEvent[]) => void;
   setStatus: (lastSync: string, docSize: number) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -41,6 +43,7 @@ export const useSettingsStore = create<SettingsState>()(
       docSize: 0,
       history: [],
       files: [],
+      archiveEvents: [],
       isLoading: false,
       error: null,
       
@@ -64,6 +67,7 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       
       setFiles: (files) => set({ files }),
+      setArchiveEvents: (events) => set({ archiveEvents: events }),
       
       setStatus: (lastSync, docSize) => set({ lastSync, docSize }),
       
