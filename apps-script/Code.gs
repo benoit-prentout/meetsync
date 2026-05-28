@@ -171,13 +171,15 @@ function getStatus() {
   const estimatedChars = parseInt(props.getProperty('estimatedChars') || '0', 10);
   const lastSync = props.getProperty('lastSync');
   const isConfigured = Boolean(CONFIG.MASTER_DOC_ID && CONFIG.ARCHIVE_FOLDER_ID);
+  const archiveHistory = JSON.parse(props.getProperty('archiveHistory') || '[]');
 
   return {
     success: true,
     lastSync: lastSync ? new Date(parseInt(lastSync, 10)).toISOString() : null,
     docSize: estimatedChars,
     isConfigured: isConfigured,
-    backendIntegrity: SCRIPT_INTEGRITY
+    backendIntegrity: SCRIPT_INTEGRITY,
+    archiveEvents: archiveHistory.slice(0, 5)
   };
 }
 
@@ -829,6 +831,14 @@ function checkAndArchive_(docId, timezone, force) {
     apiCall_(() => Docs.Documents.batchUpdate({ requests: clearRequests }, docId));
 
     props.setProperty('estimatedChars', '0');
+    var archiveHistory = JSON.parse(props.getProperty('archiveHistory') || '[]');
+    archiveHistory.unshift({
+      date: new Date().toISOString(),
+      sizeBefore: estimatedChars,
+      reason: archiveReason
+    });
+    if (archiveHistory.length > 10) archiveHistory.length = 10;
+    props.setProperty('archiveHistory', JSON.stringify(archiveHistory));
     console.log(`✅ Archived: Meeting Notes Archive — ${dateStr} (${archiveUrl})`);
 
     // Send email notification for the archive
@@ -919,6 +929,7 @@ function showSyncHistory() {
 function logSyncRun_(run) {
   try {
     const props = PropertiesService.getScriptProperties();
+    run.docSize = parseInt(props.getProperty('estimatedChars') || '0', 10);
     const history = JSON.parse(props.getProperty('syncHistory') || '[]');
     history.unshift(run);
     if (history.length > CONFIG.HISTORY_SIZE) history.length = CONFIG.HISTORY_SIZE;
