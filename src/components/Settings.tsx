@@ -137,7 +137,7 @@ export function Settings() {
   };
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4">
       {/* Apps Script Deployment — always visible so it's accessible even when settings fail */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
         <p className="text-sm font-semibold text-slate-900 mb-1">Apps Script Deployment</p>
@@ -212,7 +212,7 @@ export function Settings() {
                   <button
                     onClick={handleDeploy}
                     disabled={deploying}
-                    className="text-xs font-semibold text-[#1a73e8] hover:text-[#1557b0] disabled:opacity-50 ml-2"
+                    className="text-xs font-semibold text-[#1a73e8] hover:text-[#1557b0] disabled:opacity-50 ml-2 transition-colors"
                   >
                     {deploying ? 'Deploying...' : 'Deploy Update'}
                   </button>
@@ -228,7 +228,7 @@ export function Settings() {
                   <button
                     onClick={handleDeploy}
                     disabled={deploying}
-                    className="text-xs font-semibold text-[#1a73e8] hover:text-[#1557b0] disabled:opacity-50 ml-2"
+                    className="text-xs font-semibold text-[#1a73e8] hover:text-[#1557b0] disabled:opacity-50 ml-2 transition-colors"
                   >
                     {deploying ? 'Deploying...' : 'Deploy Update'}
                   </button>
@@ -245,32 +245,50 @@ export function Settings() {
       </div>
 
       {!settings && (
-        <div className="bg-white border border-slate-200 rounded-lg p-8 flex flex-col items-center gap-3 text-center">
+        <div className="bg-white border border-slate-200 rounded-lg p-6 flex flex-col items-center gap-3 text-center">
           {error ? (
-            <>
-              <p className="text-xs font-semibold text-red-600">Failed to load settings</p>
-              <p className="text-xs text-slate-500 max-w-xs">{error}</p>
-            </>
+            <div className="flex flex-col items-center gap-3">
+              <div className="bg-red-50 border border-red-100 rounded-lg px-4 py-3 max-w-sm">
+                <p className="text-xs font-semibold text-red-700 mb-1">Failed to load settings</p>
+                <p className="text-xs text-red-500">{error}</p>
+              </div>
+              {!isLoading && (
+                <Button variant="link" size="sm" onClick={() => getSettings().catch(() => {})}>
+                  <RefreshCw className="w-3 h-3 mr-1" aria-hidden="true" />
+                  Try again
+                </Button>
+              )}
+            </div>
           ) : (
-            <p className="text-xs text-slate-400">Loading settings…</p>
-          )}
-          {!isLoading && (
-            <Button
-              variant="link"
-              size="sm"
-              onClick={() => getSettings().catch(() => {})}
-            >
-              <RefreshCw className="w-3 h-3 mr-1" aria-hidden="true" />
-              Try again
-            </Button>
-          )}
-          {isLoading && (
-            <RefreshCw className="w-3.5 h-3.5 text-slate-400 motion-safe:animate-spin" aria-hidden="true" />
+            <>
+              <RefreshCw className="w-5 h-5 text-slate-300 motion-safe:animate-spin" aria-hidden="true" />
+              <p className="text-xs text-slate-400">Loading settings…</p>
+            </>
           )}
         </div>
       )}
 
       {settings && (<>
+
+      {/* Config Status */}
+      <div className="grid grid-cols-4 gap-3">
+        {([
+          ['Backend', deploymentUrl],
+          ['Script ID', scriptId],
+          ['Master Doc', settings.masterDocId],
+          ['Archive Folder', settings.archiveFolderId],
+        ] as const).map(([label, value]) => (
+          <div key={label} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center gap-2.5 h-[52px]">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${value ? 'bg-green-500' : 'bg-slate-300'}`} />
+            <div className="min-w-0">
+              <span className="text-[11px] text-slate-400 uppercase tracking-wide block leading-tight">{label}</span>
+              <span className={`text-xs font-semibold ${value ? 'text-green-700' : 'text-slate-400'}`}>
+                {value ? 'Configured' : 'Not set'}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Google Drive Configuration */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
@@ -283,9 +301,9 @@ export function Settings() {
                 <span className="shrink-0 px-3 py-2 text-sm text-slate-400 bg-slate-50 border-r border-input select-none cursor-default whitespace-nowrap">
                   https://docs.google.com/document/d/
                 </span>
-                <input
+                <Input
                   id="masterDocId"
-                  className="flex-1 h-10 px-3 py-2 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+                  className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 h-10 px-3"
                   value={settings.masterDocId || ''}
                   onChange={(e) => {
                     updateSetting('masterDocId', e.target.value);
@@ -339,9 +357,9 @@ export function Settings() {
                 <span className="shrink-0 px-3 py-2 text-sm text-slate-400 bg-slate-50 border-r border-input select-none cursor-default whitespace-nowrap">
                   https://drive.google.com/drive/folders/
                 </span>
-                <input
+                <Input
                   id="archiveFolderId"
-                  className="flex-1 h-10 px-3 py-2 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+                  className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 h-10 px-3"
                   value={settings.archiveFolderId || ''}
                   onChange={(e) => {
                     updateSetting('archiveFolderId', e.target.value);
@@ -534,8 +552,10 @@ export function Settings() {
           <span>Advanced Settings</span>
           {showAdvanced ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
-        {showAdvanced && (
-          <div className="space-y-4 mt-4 pt-4 border-t border-slate-100">
+        <div className={`overflow-hidden transition-all duration-200 ease-in-out ${
+          showAdvanced ? 'max-h-[600px] opacity-100 mt-4 pt-4 border-t border-slate-100' : 'max-h-0 opacity-0'
+        }`}>
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="sourceFileNamePattern">File Name Filter</Label>
               <Input
@@ -587,12 +607,13 @@ export function Settings() {
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
 
-      <div className="flex items-center justify-end gap-3">
-        {saved && <span className="text-xs text-green-600">✓ Settings saved</span>}
-        <Button onClick={handleSave} disabled={!isDirty || saving} className="bg-blue-600 text-white hover:bg-blue-700 border border-blue-700 px-6">
+      <div className="border-t border-slate-200 pt-4 flex items-center justify-end gap-3">
+        {error && <span className="text-[11px] text-red-500 mr-auto">{error}</span>}
+        {saved && <span className="text-[11px] text-green-600">✓ Settings saved</span>}
+        <Button onClick={handleSave} disabled={!isDirty || saving} className="bg-blue-600 text-white hover:bg-blue-700 border border-blue-700 px-6 transition-colors">
           <Save className="w-4 h-4 mr-2" />
           {saving ? 'Saving...' : 'Save Settings'}
         </Button>

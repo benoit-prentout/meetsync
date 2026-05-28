@@ -1,4 +1,4 @@
-import { CheckCircle, AlertTriangle, XCircle, RefreshCw, Archive, Settings, ExternalLink } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, RefreshCw, Archive, Settings, ExternalLink, BarChart3, FolderOpen } from 'lucide-react';
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="bg-white border border-slate-200 rounded-lg p-4">
@@ -54,15 +54,19 @@ export function Help() {
             <code className="bg-slate-100 px-1 rounded text-[10px]">drive.google.com/drive/folders/<strong>[ID]</strong></code>
           </Step>
           <Step n={3}>
-            Deploy the <strong>Apps Script backend</strong>: open the script editor, paste <code className="bg-slate-100 px-1 rounded text-[10px]">Code.gs</code>, deploy as a web app (<em>Execute as: Me</em>, <em>Who has access: Anyone</em>), and copy the deployment URL.
+            Deploy the <strong>Apps Script backend</strong>: open script.google.com, paste <code className="bg-slate-100 px-1 rounded text-[10px]">Code.gs</code>, deploy as a web app (<em>Execute as: Me</em>, <em>Who has access: Anyone</em>). Copy the deployment URL AND note the Script Project ID from the editor URL:{' '}
+            <code className="bg-slate-100 px-1 rounded text-[10px]">script.google.com/home/projects/<strong>[SCRIPT_ID]</strong>/edit</code>
           </Step>
           <Step n={4}>
-            Open the extension popup and complete the <strong>Setup Wizard</strong>: sign in, paste your deployment URL, then go to{' '}
-            <span className="inline-flex items-center gap-0.5 font-medium text-slate-700"><Settings className="w-3 h-3" /> Settings</span>{' '}
-            to enter your Master Doc ID and Archive Folder ID.
+            Open the extension popup and complete the <strong>Setup Wizard</strong>: sign in, paste your deployment URL AND Script Project ID, click <strong>Save &amp; Connect</strong>. The wizard verifies the backend connection before completing.
           </Step>
           <Step n={5}>
-            Click <strong>Save Settings</strong>, then try <span className="inline-flex items-center gap-0.5 font-medium text-slate-700"><RefreshCw className="w-3 h-3" /> Sync Now</span> from the Overview tab. Check the History tab to confirm it succeeded.
+            Go to{' '}
+            <span className="inline-flex items-center gap-0.5 font-medium text-slate-700"><Settings className="w-3 h-3" /> Settings</span>{' '}
+            to enter your Master Doc ID and Archive Folder ID, then click <strong>Save Settings</strong>.
+          </Step>
+          <Step n={6}>
+            Try <span className="inline-flex items-center gap-0.5 font-medium text-slate-700"><RefreshCw className="w-3 h-3" /> Sync Now</span> from the Overview tab. Check the History tab to confirm it succeeded.
           </Step>
         </div>
       </Section>
@@ -88,8 +92,11 @@ export function Help() {
             label="Error"
             color="text-red-500"
             description="The sync ran but no files were successfully processed. This usually means an auth issue, a misconfigured Master Doc ID, or a backend problem."
-            tip="Tip: Verify your Master Doc ID and Archive Folder ID in Settings, then re-save and try again. If the error persists, re-deploy your Apps Script backend."
+            tip="Tip: Verify your Master Doc ID and Archive Folder ID in Settings, then re-save and try again. If the error persists, check the Backend Status in Settings and click Deploy Update to re-deploy your Apps Script backend."
           />
+          <p className="text-[10px] text-slate-400 italic mt-2">
+            Archive events (manual or automatic) are recorded and visible in your History and Analytics tabs.
+          </p>
         </div>
       </Section>
 
@@ -103,7 +110,9 @@ export function Help() {
               'The Apps Script backend is deployed with Execute as: Me and Who has access: Anyone (not "Anyone with Google account") — the script runs under your account and has access to your Drive.',
               'Your Google Meet notes are saved in a folder named exactly as configured in "Source Folder Name" (default: Meet Notes).',
               'You\'re signed into the same Google account in the extension as the one that owns the Apps Script.',
-              'The deployment URL in the extension\'s Setup Wizard matches the current Apps Script deployment (re-deploy if you edited the script).',
+              'The deployment URL and Script Project ID in the extension match the current Apps Script deployment.',
+              'Check the Backend Status in Settings — if it shows "Update available", click Deploy Update to push the latest code from the extension.',
+              'Your extension version is up to date (the backend checksum verifies the deployed script matches the built-in hash).',
             ].map((item) => (
               <li key={item} className="flex gap-2">
                 <span className="text-green-500 mt-0.5">✓</span>
@@ -141,6 +150,80 @@ export function Help() {
           <p className="text-[10px] text-slate-400 italic">
             The doc size progress bar on the Overview turns amber above 60% and red above 80% of the threshold.
           </p>
+          <p>
+            Archive events are tracked and visible in the <span className="inline-flex items-center gap-0.5 font-medium text-slate-700"><BarChart3 className="w-3 h-3" /> Analytics</span> tab — each archive resets the doc size and appears as a marker on the growth chart.
+          </p>
+        </div>
+      </Section>
+
+      {/* Analytics */}
+      <Section title="Analytics">
+        <div className="space-y-2 text-xs text-slate-600">
+          <p>
+            The <span className="inline-flex items-center gap-0.5 font-medium text-slate-700"><BarChart3 className="w-3 h-3" /> Analytics</span> tab gives you insight into your sync activity over time:
+          </p>
+          <ul className="space-y-1.5 pl-1">
+            {[
+              'Stat cards show total syncs, files processed, success rate, growth rate, average duration, and your current success streak.',
+              'Doc Size Growth chart tracks how your master document is growing with a visual progress bar toward the archive threshold.',
+              'Sync Duration chart shows how long each sync run takes — useful for spotting performance regressions.',
+              'Reliability panel shows the last 20 sync statuses as a color-coded mini grid: green (success), amber (partial), red (error).',
+              'New vs Updated chart breaks down first-time syncs and re-syncs per run.',
+              'Most Updated Files list highlights files that change frequently across sync runs.',
+            ].map((item) => (
+              <li key={item} className="flex gap-2">
+                <span className="text-[#1a73e8] mt-0.5">•</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Section>
+
+      {/* Files */}
+      <Section title="Files">
+        <div className="space-y-2 text-xs text-slate-600">
+          <p>
+            The <span className="inline-flex items-center gap-0.5 font-medium text-slate-700"><FolderOpen className="w-3 h-3" /> Files</span> tab shows all synced files with their sync history:
+          </p>
+          <ul className="space-y-1.5 pl-1">
+            {[
+              'Your Master Document is pinned at the top with a star icon for quick access.',
+              'Each file shows its name, size, and a status dot: green (synced recently), amber (active), grey (older sync).',
+              'Click any file to expand it and see its full sync history — every time it was synced or updated.',
+              'Use the search bar to filter files by name, and the sort dropdown to order by last synced, name, or update count.',
+              'The daily activity bar chart shows how many files were synced over the last 14 days.',
+            ].map((item) => (
+              <li key={item} className="flex gap-2">
+                <span className="text-[#1a73e8] mt-0.5">•</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Section>
+
+      {/* Backend Updates */}
+      <Section title="Backend Updates">
+        <div className="space-y-2 text-xs text-slate-600">
+          <p>
+            The extension can check and update your Apps Script backend directly from{' '}
+            <span className="inline-flex items-center gap-0.5 font-medium text-slate-700"><Settings className="w-3 h-3" /> Settings</span>:
+          </p>
+          <ol className="space-y-1.5 list-decimal list-inside">
+            <li>
+              Make sure your <strong>Script Project ID</strong> is set in the Apps Script Deployment section (find it in the editor URL: <code className="bg-slate-100 px-1 rounded text-[10px]">script.google.com/home/projects/<strong>[SCRIPT_ID]</strong>/edit</code>).
+            </li>
+            <li>
+              Check the <strong>Backend Status</strong> indicator — it compares the deployed script hash against the version bundled in your extension.
+            </li>
+            <li>
+              If status shows <strong>"Update available"</strong>, click <strong>Deploy Update</strong> to push the latest backend code without leaving the dashboard.
+            </li>
+          </ol>
+          <p className="mt-2">
+            One-click deploy uses the Apps Script API to upload code, create a new version, and update the deployment — the same as re-deploying from the script editor, but instant.
+          </p>
         </div>
       </Section>
 
@@ -162,6 +245,14 @@ export function Help() {
           >
             <ExternalLink className="w-3 h-3" />
             NotebookLM — add your master doc as a source
+          </a>
+          <a
+            href="https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm"
+            onClick={(e) => { e.preventDefault(); chrome.tabs.create({ url: 'https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm' }); }}
+            className="flex items-center gap-2 text-xs text-[#1a73e8] hover:underline"
+          >
+            <ExternalLink className="w-3 h-3" />
+            GitHub Repository — source code, issues, and setup guide
           </a>
         </div>
       </Section>

@@ -3,7 +3,7 @@
 ## Two-Layer Architecture
 
 - **Chrome MV3 extension** (`src/`): React 18 + TypeScript + Vite + Tailwind CSS + Zustand — built with `npm run build`, output to `dist/`.
-- **Apps Script backend** (`apps-script/Code.gs`): ~1000 lines of Google Apps Script, deployed manually by copy-paste into the Apps Script editor.
+- **Apps Script backend** (`apps-script/Code.gs`): ~1080 lines of Google Apps Script, deployed manually by copy-paste into the Apps Script editor.
 - `CLAUDE.md` has the authoritative detailed reference — this file captures only what's easy to miss.
 
 ## Quick Commands
@@ -19,7 +19,7 @@ npx vitest run -t "test name"   # single test by name
 
 ## Dev Preview (preferred over building+loading extension)
 
-Three dev entry points bypass `chrome-extension://` restrictions:
+Four dev entry points bypass `chrome-extension://` restrictions:
 
 | URL | What it renders |
 |-----|----------------|

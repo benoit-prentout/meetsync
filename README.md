@@ -28,7 +28,8 @@ For developers who want to self-host the Chrome extension:
 3. **Add your client ID** — edit `public/manifest.json` → `oauth2.client_id`
 4. **Build**: `npm install && npm run build`
 5. **Load in Chrome**: go to `chrome://extensions` → Developer mode → Load unpacked → select `dist/`
-6. **Configure**: the extension opens a Setup wizard — enter your Apps Script deployment URL
+6. **Configure**: the extension opens a Setup wizard — enter your **Deployment URL** (from the web app `/macros/s/{id}/exec`) and your **Script Project ID** (from the editor `/home/projects/{scriptId}/edit`). These are separate identifiers.
+7. **Auto-deploy backend**: In Settings, click **Deploy Backend** to push the latest `Code.gs` directly via the Apps Script API — or manually copy it if you prefer.
 
 ---
 
@@ -44,6 +45,9 @@ NotebookLM is powerful, but it limits the number of sources you can add (50 sour
 * 📧 **Email Notifications**: Receive an email with the link to your new archive as soon as it is created.
 * 🛡️ **Smart Sync**: Works even on files where you only have view-only access.
 * ⚡ **Performance**: Uses advanced Google APIs to process 20+ meetings in seconds.
+* 🔄 **Backend Auto-Deploy**: Push Code.gs updates directly from the extension Settings via the Apps Script REST API — no manual copy-paste needed.
+* 📈 **Analytics Dashboard**: Multi-section insights dashboard with charts showing sync frequency, files processed, doc growth rate, success rates, and sync streaks.
+* 🗃️ **Archive History**: Full history of archive events tracked and visible in the Analytics view.
 
 ---
 
@@ -64,8 +68,13 @@ NotebookLM is powerful, but it limits the number of sources you can add (50 sour
 2. Inside this doc, go to the menu **Extensions > Apps Script**.
 
 ### 2️⃣ Copy the Code
+Choose one:
+
+**Option A — Auto-Deploy (recommended)**: Complete the Chrome extension Setup wizard, then in Settings click **Deploy Backend**. The extension pushes the code via the Apps Script API — no manual copy-paste needed.
+
+**Option B — Manual copy**:
 1. Delete everything in the script editor.
-2. Copy the entire content of the `apps-script/Code.gs` file from this repository and paste it into the editor.
+2. Copy the entire content of `apps-script/Code.gs` and paste it into the editor.
 3. Save and name the project "Sync NotebookLM".
 
 ### 3️⃣ Configure Google Services
@@ -106,6 +115,28 @@ To have the sync run automatically every 15 minutes:
 3. Add your **Master Google Doc** as a source.
 4. **Important**: Every time you use NotebookLM, click the **Refresh** button next to the Google Doc source so it picks up the latest meetings.
 5. **Archives**: When an archive is created, don't forget to add the archive file as a source in NotebookLM to keep your full history!
+
+---
+
+## 💻 Development
+
+```bash
+npm run dev       # Vite dev server at localhost:5173 (chrome APIs mocked)
+npm run build     # tsc + vite build → dist/
+npm test          # vitest run
+npm run package   # build + zip → meet-gemini-notebooklm.zip
+```
+
+Dev entry points (bypass `chrome-extension://` restrictions):
+
+| URL | Renders |
+|-----|---------|
+| `/dashboard.html` | Full auth + dashboard flow (conditional mock) |
+| `/dashboard-dev.html` | `<Dashboard />` directly, mocked data |
+| `/popup-dev.html` | `<Popup />` directly, mocked data |
+| `/wizard-dev.html` | `<SetupWizard />` with scenario picker |
+
+Mocks live in `src/dev-mocks.ts`. Tree-shaken from production builds.
 
 ---
 

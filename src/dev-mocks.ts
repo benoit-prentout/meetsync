@@ -25,6 +25,7 @@ localStorage.removeItem('meet-gemini-storage');
 };
 
 const now = Date.now();
+const hour = 3_600_000;
 const day = 86_400_000;
 
 useSettingsStore.setState({
@@ -56,17 +57,17 @@ useSettingsStore.setState({
   history: [
     {
       id: 'h1',
-      timestamp: new Date(now - 3 * day).toISOString(),
+      timestamp: new Date(now - 4 * hour).toISOString(),
       filesProcessed: 2,
-      status: 'partial',
-      message: '1 synced, 1 updated, 2 errors',
+      status: 'success',
+      message: '2 synced, 0 updated',
       syncedNames: ['Weekly Sync — Product Team'],
-      updatedNames: ['Q2 Planning Session'],
-      duration: 3800,
+      updatedNames: [],
+      duration: 1800,
     },
     {
       id: 'h2',
-      timestamp: new Date(now - 2 * day).toISOString(),
+      timestamp: new Date(now - 26 * hour).toISOString(),
       filesProcessed: 1,
       status: 'success',
       message: '1 synced, 0 updated',
@@ -76,10 +77,10 @@ useSettingsStore.setState({
     },
     {
       id: 'h3',
-      timestamp: new Date(now - 4 * day).toISOString(),
+      timestamp: new Date(now - 3 * day).toISOString(),
       filesProcessed: 0,
       status: 'partial',
-      message: '0 synced, 0 updated',
+      message: '0 synced, 0 updated, 1 error',
       syncedNames: [],
       updatedNames: [],
       duration: 900,
@@ -96,7 +97,7 @@ useSettingsStore.setState({
     },
     {
       id: 'h5',
-      timestamp: new Date(now - 7 * day).toISOString(),
+      timestamp: new Date(now - 8 * day).toISOString(),
       filesProcessed: 2,
       status: 'success',
       message: '2 synced, 0 updated',
@@ -104,9 +105,9 @@ useSettingsStore.setState({
       updatedNames: [],
       duration: 2200,
     },
-    { id: 'h6', timestamp: new Date(now - 8 * day).toISOString(), filesProcessed: 0, status: 'error', message: 'Failed: quota exceeded' },
-    { id: 'h7', timestamp: new Date(now - 10 * day).toISOString(), filesProcessed: 4, status: 'success', message: '4 synced, 0 updated' },
-    { id: 'h8', timestamp: new Date(now - 12 * day).toISOString(), filesProcessed: 2, status: 'success', message: '2 synced, 0 updated' },
+    { id: 'h6', timestamp: new Date(now - 15 * day).toISOString(), filesProcessed: 0, status: 'error', message: 'Failed: quota exceeded' },
+    { id: 'h7', timestamp: new Date(now - 25 * day).toISOString(), filesProcessed: 4, status: 'success', message: '4 synced, 0 updated' },
+    { id: 'h8', timestamp: new Date(now - 45 * day).toISOString(), filesProcessed: 2, status: 'success', message: '2 synced, 0 updated' },
   ],
   files: [
     { id: 'f1', name: 'Weekly Sync — Product Team', lastSynced: new Date(now - day).toISOString(), size: 0 },

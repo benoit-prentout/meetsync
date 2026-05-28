@@ -7,11 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Two-layer project: a **Chrome MV3 extension** (React + TypeScript + Vite + Tailwind + shadcn/ui) and a **Google Apps Script web app** backend. The extension lets users configure and monitor syncing of Google Meet "Notes by Gemini" into a master Google Doc for use as a NotebookLM source.
 
 - Extension source: `src/` — built with `npm run build`, output to `dist/`
-- Backend: `apps-script/Code.gs` (~780 lines) — deployed manually via Apps Script editor
+- Backend: `apps-script/Code.gs` (~1080 lines) — deployed manually via Apps Script editor
 
 ## Chrome Extension Commands
 
 ```bash
+npm run dev                         # Vite dev server at localhost:5173
 npm run build                       # Build extension → dist/
 npm test                            # Run Vitest test suite
 npm run test:watch                  # Watch mode
@@ -45,7 +46,7 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 - `CONFIG_OVERRIDES` loaded from `PropertiesService` on startup via IIFE; `updateSettings` persists changes there.
 - `SETTINGS_KEY_MAP_` maps camelCase frontend keys ↔ SCREAMING_SNAKE_CASE `CONFIG` keys.
 - POST detection uses `e.postData` (not `e.method === 'POST'` — that field doesn't exist in Apps Script).
-- `getHistory()` returns `{id, timestamp, filesProcessed, status, message}` matching `SyncEvent` type.
+- `getHistory()` returns `{id, timestamp, filesProcessed, status, message, syncedNames, updatedNames, duration}` matching `SyncEvent` type.
 - `getFiles()` returns `{id, name, lastSynced, size}` matching `SyncFile` type; fetches name from `Drive.Files.get`.
 
 ### Chrome Extension
@@ -70,13 +71,13 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 
 ## Dev Preview Workflow (preferred for UI iteration)
 
-Chrome extensions can't be navigated to directly (`chrome-extension://` URLs are blocked by tools). Instead, use the Vite dev server + Claude Preview MCP to iterate visually without rebuilding or reloading the extension:
+Chrome extensions can't be navigated to directly (`chrome-extension://` URLs are blocked by tools). Instead, use the Vite dev server to iterate visually without rebuilding or reloading the extension:
 
 ```bash
 npm run dev   # starts Vite dev server at http://localhost:5173
 ```
 
-Three dev entry points are available:
+Four dev entry points are available:
 
 | URL | Entry point | What it shows |
 |---|---|---|
@@ -93,11 +94,9 @@ Three dev entry points are available:
 - Dev mocks are tree-shaken out of production builds — they never appear in `dist/`.
 
 **Verification workflow for UI changes:**
-1. Start dev server with `preview_start` (name: `dashboard`)
-2. Screenshot with `preview_screenshot` to check layout
-3. Use `preview_eval` to click nav buttons: `document.querySelectorAll('nav button')[n].click()`
-4. Use `preview_inspect` to verify computed CSS properties (colors, dimensions)
-5. Use `preview_eval` to query DOM state (e.g. `data-state` attributes on toggles)
+1. Start dev server: `npm run dev`
+2. Open `http://localhost:5173/dashboard-dev.html` in a browser
+3. Navigate tabs and inspect visually or via browser DevTools
 
 ## Testing
 
@@ -117,6 +116,6 @@ npm test   # runs vitest (jsdom, globals: true)
 - `Session.getActiveUser().getEmail()` returns empty for some account types; `validateCaller_` logs a warning and returns false.
 - Email notifications via `MailApp` silently fail when quota is exceeded or on personal accounts.
 - Archive email failure is caught and logged but does not abort the archive.
-- **shadcn/ui CSS variables are not defined** in `src/index.css` — `--primary`, `--input`, `--background`, `--ring` etc. are all unset. Any shadcn component using these tokens (e.g. `bg-primary`, `bg-input`) will render transparent. Use explicit Tailwind classes instead (e.g. `bg-[#1a73e8]`, `bg-slate-200`, `bg-white`).
+- **shadcn/ui CSS variables ARE defined** in `src/index.css` (`--primary`, `--input`, `--background`, `--ring`, etc.). They can be used directly.
 - **`background.js` must land at the dist root**, not `dist/assets/`. Vite routes it there via `output.entryFileNames` callback in `vite.config.ts` — don't remove that logic.
 - **Auto-sync settings** (`autoSyncEnabled`, `autoSyncIntervalMinutes`) live in `chrome.storage.sync` directly, not in Zustand — the background service worker reads them at alarm time without access to the store.

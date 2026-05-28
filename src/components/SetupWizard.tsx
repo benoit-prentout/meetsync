@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Github } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettingsStore } from '@/store/settingsStore';
 import { api } from '@/lib/api';
@@ -159,6 +160,15 @@ export function SetupWizard() {
             </a>
           </p>
         </div>
+      </div>
+      <div className="mt-2 text-center">
+        <button
+          onClick={() => chrome.tabs.create({ url: 'https://github.com/benoit-prentout/google-meet-gemini-to-notebooklm' })}
+          className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+        >
+          <Github className="w-3 h-3" />
+          Star on GitHub
+        </button>
       </div>
     </div>
   );
