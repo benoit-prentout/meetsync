@@ -114,4 +114,7 @@ useSettingsStore.setState({
     { id: 'f3', name: 'Engineering All-Hands', lastSynced: new Date(now - 5 * day).toISOString(), size: 0 },
     { id: 'f4', name: 'Customer Discovery — Acme Corp', lastSynced: new Date(now - 7 * day).toISOString(), size: 0 },
   ],
+  archiveEvents: [
+    { date: new Date(now - 15 * day).toISOString(), sizeBefore: 823000, reason: 'Size limit reached (~823K chars)' },
+  ],
 });
