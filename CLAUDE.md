@@ -119,7 +119,7 @@ npm test   # runs vitest (jsdom, globals: true)
 
 - `dist/` is gitignored — build artifacts are not committed.
 - `Drive.Files.get` returns `size: "0"` for Google Docs (not binary files) — `getFiles()` treats this as `0`.
-- `Session.getActiveUser().getEmail()` returns empty for some account types; `validateCaller_` logs a warning and returns false.
+- `Session.getActiveUser().getEmail()` returns empty for some personal accounts. `validateCaller_` falls back to a stored `OWNER_EMAIL` script property: it is seeded on first successful auth from `tokeninfo.email`. To reset (e.g. after binding to a new user), delete the `OWNER_EMAIL` property in the Apps Script editor → Project Settings → Script Properties.
 - Email notifications via `MailApp` silently fail when quota is exceeded or on personal accounts.
 - Archive email failure is caught and logged but does not abort the archive.
 - **shadcn/ui CSS variables ARE defined** in `src/index.css` (`--primary`, `--input`, `--background`, `--ring`, etc.). They can be used directly.

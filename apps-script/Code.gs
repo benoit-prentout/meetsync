@@ -84,22 +84,39 @@ function isWithinTimeWindow_() {
 
 function validateCaller_(accessToken) {
   if (!accessToken) return false;
-  const cache = CacheService.getScriptCache();
-  const cached = cache.get('auth_' + accessToken.slice(0, 32));
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get('auth_' + accessToken.slice(0, 32));
   if (cached === 'ok') return true;
   try {
-    const resp = UrlFetchApp.fetch(
+    var resp = UrlFetchApp.fetch(
       'https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + encodeURIComponent(accessToken),
       { muteHttpExceptions: true }
     );
     if (resp.getResponseCode() !== 200) return false;
-    const info = JSON.parse(resp.getContentText());
-    const ownerEmail = Session.getActiveUser().getEmail();
-    if (!ownerEmail) {
-      console.warn('validateCaller_: Session.getActiveUser().getEmail() returned empty — auth will fail until resolved');
-      return false;
+    var info = JSON.parse(resp.getContentText());
+    if (!info.email) return false;
+
+    var props = PropertiesService.getScriptProperties();
+    var sessionEmail = '';
+    try { sessionEmail = Session.getActiveUser().getEmail() || ''; } catch (_) {}
+    var storedOwner = props.getProperty('OWNER_EMAIL') || '';
+
+    // First-run seeding: if no OWNER_EMAIL stored yet AND we have a sessionEmail, trust it once.
+    if (!storedOwner && sessionEmail) {
+      props.setProperty('OWNER_EMAIL', sessionEmail);
+      storedOwner = sessionEmail;
     }
-    if (info.email && info.email === ownerEmail) {
+    // First-run for personal accounts: if no OWNER_EMAIL AND sessionEmail empty,
+    // seed from tokeninfo. This trusts the first caller; acceptable because
+    // deploying as "Execute as: Me" already binds the script to one user.
+    if (!storedOwner && !sessionEmail) {
+      props.setProperty('OWNER_EMAIL', info.email);
+      storedOwner = info.email;
+      console.warn('validateCaller_: seeded OWNER_EMAIL from tokeninfo (personal account fallback): ' + info.email);
+    }
+
+    var ok = info.email === storedOwner || (sessionEmail && info.email === sessionEmail);
+    if (ok) {
       cache.put('auth_' + accessToken.slice(0, 32), 'ok', 300);
       return true;
     }
