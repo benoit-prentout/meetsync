@@ -235,9 +235,9 @@ function validateSettings_(settings) {
   function isStr(v) { return typeof v === 'string'; }
   function isHHMM(v) { return typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v); }
 
-  for (var key in settings) {
+  Object.keys(settings).forEach(function (key) {
     if (ALLOWED.indexOf(key) === -1) push(key, 'unknown setting');
-  }
+  });
   if ('maxFilesPerRun' in settings && (!isInt(settings.maxFilesPerRun) || settings.maxFilesPerRun < 1 || settings.maxFilesPerRun > 100)) push('maxFilesPerRun', 'must be integer 1–100');
   if ('maxAgeDays' in settings && (!isInt(settings.maxAgeDays) || settings.maxAgeDays < 0)) push('maxAgeDays', 'must be integer ≥ 0');
   if ('archiveThresholdChars' in settings && (!isInt(settings.archiveThresholdChars) || settings.archiveThresholdChars < 0 || settings.archiveThresholdChars > 1000000)) push('archiveThresholdChars', 'must be integer 0–1000000');
