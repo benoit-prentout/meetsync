@@ -226,7 +226,40 @@ var SETTINGS_KEY_MAP_ = {
   syncWindowEnd: 'SYNC_WINDOW_END'
 };
 
+function validateSettings_(settings) {
+  var ALLOWED = Object.keys(SETTINGS_KEY_MAP_);
+  var errors = [];
+  function push(field, reason) { errors.push({ field: field, reason: reason }); }
+  function isInt(v) { return typeof v === 'number' && isFinite(v) && Math.floor(v) === v; }
+  function isBool(v) { return typeof v === 'boolean'; }
+  function isStr(v) { return typeof v === 'string'; }
+  function isHHMM(v) { return typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v); }
+
+  for (var key in settings) {
+    if (ALLOWED.indexOf(key) === -1) push(key, 'unknown setting');
+  }
+  if ('maxFilesPerRun' in settings && (!isInt(settings.maxFilesPerRun) || settings.maxFilesPerRun < 1 || settings.maxFilesPerRun > 100)) push('maxFilesPerRun', 'must be integer 1–100');
+  if ('maxAgeDays' in settings && (!isInt(settings.maxAgeDays) || settings.maxAgeDays < 0)) push('maxAgeDays', 'must be integer ≥ 0');
+  if ('archiveThresholdChars' in settings && (!isInt(settings.archiveThresholdChars) || settings.archiveThresholdChars < 0 || settings.archiveThresholdChars > 1000000)) push('archiveThresholdChars', 'must be integer 0–1000000');
+  if ('maxRetries' in settings && (!isInt(settings.maxRetries) || settings.maxRetries < 1 || settings.maxRetries > 10)) push('maxRetries', 'must be integer 1–10');
+  if ('historySize' in settings && (!isInt(settings.historySize) || settings.historySize < 1 || settings.historySize > 200)) push('historySize', 'must be integer 1–200');
+  ['enableMonthlyArchive','enableUpdateDetection','enableNotifications','enableTimeWindow'].forEach(function(k){
+    if (k in settings && !isBool(settings[k])) push(k, 'must be boolean');
+  });
+  ['sourceFolderName','archiveFolderId','masterDocId','sourceFileNamePattern','exclusionPatterns'].forEach(function(k){
+    if (k in settings && !isStr(settings[k])) push(k, 'must be string');
+  });
+  ['syncWindowStart','syncWindowEnd'].forEach(function(k){
+    if (k in settings && !isHHMM(settings[k])) push(k, 'must be HH:MM (24h)');
+  });
+  return errors.length === 0 ? { ok: true } : { ok: false, errors: errors };
+}
+
 function updateSettings(settings) {
+  var v = validateSettings_(settings || {});
+  if (!v.ok) {
+    return { success: false, error: 'VALIDATION_FAILED', errors: v.errors };
+  }
   var toSave = {};
   for (var camelKey in SETTINGS_KEY_MAP_) {
     if (camelKey in settings) {
@@ -236,7 +269,6 @@ function updateSettings(settings) {
     }
   }
   var props = PropertiesService.getScriptProperties();
-  // Merge toSave into existing persisted overrides
   var existing = {};
   try { existing = JSON.parse(props.getProperty('CONFIG_OVERRIDES') || '{}'); } catch (_) {}
   Object.assign(existing, toSave);

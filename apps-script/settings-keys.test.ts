@@ -66,3 +66,20 @@ describe('Settings key mapping contract', () => {
     expect(unique.size).toBe(values.length);
   });
 });
+
+import { describe as describe2, it as it2, expect as expect2 } from 'vitest';
+
+describe2('Settings validator coverage', () => {
+  it2('every camelCase key in SETTINGS_KEY_MAP appears in the mirrored ALLOWED list', () => {
+    // Mirrors apps-script/Code.gs validateSettings_ ALLOWED list.
+    const ALLOWED = [
+      'sourceFolderName', 'maxFilesPerRun', 'archiveThresholdChars', 'enableMonthlyArchive',
+      'enableUpdateDetection', 'maxAgeDays', 'archiveFolderId', 'masterDocId',
+      'maxRetries', 'historySize', 'enableNotifications', 'sourceFileNamePattern',
+      'exclusionPatterns', 'enableTimeWindow', 'syncWindowStart', 'syncWindowEnd',
+    ];
+    for (const k of Object.keys(SETTINGS_KEY_MAP)) {
+      expect2(ALLOWED).toContain(k);
+    }
+  });
+});
