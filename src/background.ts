@@ -53,6 +53,13 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   } catch (e) {
     const code = e instanceof ApiError ? e.code : 'UNKNOWN';
     const message = e instanceof Error ? e.message : String(e);
+    if (code === 'UNAUTHORIZED') {
+      try {
+        await new Promise<void>((resolve) =>
+          chrome.identity.removeCachedAuthToken({ token }, () => resolve())
+        );
+      } catch { /* best-effort eviction */ }
+    }
     await pushAlarmOutcome({
       timestamp: new Date(startedAt).toISOString(),
       ok: false,
