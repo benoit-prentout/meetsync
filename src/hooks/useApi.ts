@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
+import { useAuth } from './useAuth';
 
 const inflight = new Map<string, Promise<unknown>>();
 
@@ -16,6 +17,7 @@ export { dedupe as _dedupeForTest };
 
 export function useApi() {
   const { accessToken, setLoading, setError, setStatus, setHistory, setFiles, setSettings, setArchiveEvents } = useSettingsStore();
+  const { reauth } = useAuth();
 
   const getStatus = useCallback(async () => {
     if (!accessToken) throw new Error('Not authenticated');
@@ -29,12 +31,15 @@ export function useApi() {
         return response;
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to get status');
+        if (error instanceof ApiError && error.code === 'UNAUTHORIZED') {
+          reauth().catch(() => {});
+        }
         throw error;
       } finally {
         setLoading(false);
       }
     });
-  }, [accessToken, setLoading, setError, setStatus, setArchiveEvents]);
+  }, [accessToken, setLoading, setError, setStatus, setArchiveEvents, reauth]);
 
   const getHistory = useCallback(async () => {
     if (!accessToken) throw new Error('Not authenticated');
@@ -45,10 +50,13 @@ export function useApi() {
         return response.history;
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to get history');
+        if (error instanceof ApiError && error.code === 'UNAUTHORIZED') {
+          reauth().catch(() => {});
+        }
         throw error;
       }
     });
-  }, [accessToken, setHistory, setError]);
+  }, [accessToken, setHistory, setError, reauth]);
 
   const getFiles = useCallback(async () => {
     if (!accessToken) throw new Error('Not authenticated');
@@ -59,10 +67,13 @@ export function useApi() {
         return response.files;
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to get files');
+        if (error instanceof ApiError && error.code === 'UNAUTHORIZED') {
+          reauth().catch(() => {});
+        }
         throw error;
       }
     });
-  }, [accessToken, setFiles, setError]);
+  }, [accessToken, setFiles, setError, reauth]);
 
   const getSettings = useCallback(async () => {
     if (!accessToken) throw new Error('Not authenticated');
@@ -76,12 +87,15 @@ export function useApi() {
         return response.settings;
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to get settings');
+        if (error instanceof ApiError && error.code === 'UNAUTHORIZED') {
+          reauth().catch(() => {});
+        }
         throw error;
       } finally {
         setLoading(false);
       }
     });
-  }, [accessToken, setLoading, setSettings, setError]);
+  }, [accessToken, setLoading, setSettings, setError, reauth]);
 
   const sync = useCallback(async () => {
     if (!accessToken) throw new Error('Not authenticated');
@@ -95,12 +109,15 @@ export function useApi() {
         return response;
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Sync failed');
+        if (error instanceof ApiError && error.code === 'UNAUTHORIZED') {
+          reauth().catch(() => {});
+        }
         throw error;
       } finally {
         setLoading(false);
       }
     });
-  }, [accessToken, setLoading, setError, getStatus, getHistory, getFiles]);
+  }, [accessToken, setLoading, setError, getStatus, getHistory, getFiles, reauth]);
 
   const archive = useCallback(async () => {
     if (!accessToken) throw new Error('Not authenticated');
@@ -114,12 +131,15 @@ export function useApi() {
         return response;
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Archive failed');
+        if (error instanceof ApiError && error.code === 'UNAUTHORIZED') {
+          reauth().catch(() => {});
+        }
         throw error;
       } finally {
         setLoading(false);
       }
     });
-  }, [accessToken, setLoading, setError, getStatus, getHistory]);
+  }, [accessToken, setLoading, setError, getStatus, getHistory, reauth]);
 
   const updateSettings = useCallback(async (settings: Parameters<typeof api.updateSettings>[1]) => {
     if (!accessToken) throw new Error('Not authenticated');
@@ -133,12 +153,15 @@ export function useApi() {
         return response;
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to update settings');
+        if (error instanceof ApiError && error.code === 'UNAUTHORIZED') {
+          reauth().catch(() => {});
+        }
         throw error;
       } finally {
         setLoading(false);
       }
     });
-  }, [accessToken, setLoading, setError, getStatus]);
+  }, [accessToken, setLoading, setError, getStatus, reauth]);
 
   return {
     getStatus,

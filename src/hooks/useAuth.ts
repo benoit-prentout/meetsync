@@ -66,9 +66,19 @@ export function useAuth() {
     useSettingsStore.getState().logout();
   }, [accessToken]);
   
+  const reauth = useCallback(async (): Promise<string | null> => {
+    try {
+      const token = await signIn();
+      return token ?? null;
+    } catch {
+      return null;
+    }
+  }, [signIn]);
+
   return {
     signIn,
     signOut,
+    reauth,
     isAuthenticated,
     accessToken,
   };
