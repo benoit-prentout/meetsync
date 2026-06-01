@@ -84,22 +84,39 @@ function isWithinTimeWindow_() {
 
 function validateCaller_(accessToken) {
   if (!accessToken) return false;
-  const cache = CacheService.getScriptCache();
-  const cached = cache.get('auth_' + accessToken.slice(0, 32));
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get('auth_' + accessToken.slice(0, 32));
   if (cached === 'ok') return true;
   try {
-    const resp = UrlFetchApp.fetch(
+    var resp = UrlFetchApp.fetch(
       'https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + encodeURIComponent(accessToken),
       { muteHttpExceptions: true }
     );
     if (resp.getResponseCode() !== 200) return false;
-    const info = JSON.parse(resp.getContentText());
-    const ownerEmail = Session.getActiveUser().getEmail();
-    if (!ownerEmail) {
-      console.warn('validateCaller_: Session.getActiveUser().getEmail() returned empty — auth will fail until resolved');
-      return false;
+    var info = JSON.parse(resp.getContentText());
+    if (!info.email) return false;
+
+    var props = PropertiesService.getScriptProperties();
+    var sessionEmail = '';
+    try { sessionEmail = Session.getActiveUser().getEmail() || ''; } catch (_) {}
+    var storedOwner = props.getProperty('OWNER_EMAIL') || '';
+
+    // First-run seeding: if no OWNER_EMAIL stored yet AND we have a sessionEmail, trust it once.
+    if (!storedOwner && sessionEmail) {
+      props.setProperty('OWNER_EMAIL', sessionEmail);
+      storedOwner = sessionEmail;
     }
-    if (info.email && info.email === ownerEmail) {
+    // First-run for personal accounts: if no OWNER_EMAIL AND sessionEmail empty,
+    // seed from tokeninfo. This trusts the first caller; acceptable because
+    // deploying as "Execute as: Me" already binds the script to one user.
+    if (!storedOwner && !sessionEmail) {
+      props.setProperty('OWNER_EMAIL', info.email);
+      storedOwner = info.email;
+      console.warn('validateCaller_: seeded OWNER_EMAIL from tokeninfo (personal account fallback): ' + info.email);
+    }
+
+    var ok = info.email === storedOwner || (sessionEmail && info.email === sessionEmail);
+    if (ok) {
       cache.put('auth_' + accessToken.slice(0, 32), 'ok', 300);
       return true;
     }
@@ -153,6 +170,9 @@ function handleRequest(e) {
       case 'files':
         result = getFiles();
         break;
+      case 'diagnostics':
+        result = getDiagnostics();
+        break;
       default:
         throw new Error(`Unknown action: ${action}`);
     }
@@ -164,6 +184,35 @@ function handleRequest(e) {
       error: error.message
     })).setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+function getDiagnostics() {
+  var props = PropertiesService.getScriptProperties();
+  var overrides = {};
+  try { overrides = JSON.parse(props.getProperty('CONFIG_OVERRIDES') || '{}'); } catch (_) {}
+  var runLog = [];
+  try {
+    var parsed = JSON.parse(props.getProperty('RUN_LOG') || '[]');
+    if (Array.isArray(parsed)) runLog = parsed;
+  } catch (_) {}
+  var lastError = null;
+  for (var i = runLog.length - 1; i >= 0; i--) {
+    if (!runLog[i].ok) { lastError = runLog[i]; break; }
+  }
+  var sessionEmail = '';
+  try { sessionEmail = Session.getActiveUser().getEmail() || ''; } catch (_) {}
+  return {
+    success: true,
+    diagnostics: {
+      scriptIntegrity: SCRIPT_INTEGRITY,
+      configOverrides: overrides,
+      ownerEmail: props.getProperty('OWNER_EMAIL') || null,
+      sessionUserEmpty: !sessionEmail,
+      scriptTimezone: Session.getScriptTimeZone(),
+      lastError: lastError,
+      runLogSize: runLog.length,
+    },
+  };
 }
 
 function getStatus() {
@@ -226,7 +275,40 @@ var SETTINGS_KEY_MAP_ = {
   syncWindowEnd: 'SYNC_WINDOW_END'
 };
 
+function validateSettings_(settings) {
+  var ALLOWED = Object.keys(SETTINGS_KEY_MAP_);
+  var errors = [];
+  function push(field, reason) { errors.push({ field: field, reason: reason }); }
+  function isInt(v) { return typeof v === 'number' && isFinite(v) && Math.floor(v) === v; }
+  function isBool(v) { return typeof v === 'boolean'; }
+  function isStr(v) { return typeof v === 'string'; }
+  function isHHMM(v) { return typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v); }
+
+  Object.keys(settings).forEach(function (key) {
+    if (ALLOWED.indexOf(key) === -1) push(key, 'unknown setting');
+  });
+  if ('maxFilesPerRun' in settings && (!isInt(settings.maxFilesPerRun) || settings.maxFilesPerRun < 1 || settings.maxFilesPerRun > 100)) push('maxFilesPerRun', 'must be integer 1–100');
+  if ('maxAgeDays' in settings && (!isInt(settings.maxAgeDays) || settings.maxAgeDays < 0)) push('maxAgeDays', 'must be integer ≥ 0');
+  if ('archiveThresholdChars' in settings && (!isInt(settings.archiveThresholdChars) || settings.archiveThresholdChars < 0 || settings.archiveThresholdChars > 1000000)) push('archiveThresholdChars', 'must be integer 0–1000000');
+  if ('maxRetries' in settings && (!isInt(settings.maxRetries) || settings.maxRetries < 1 || settings.maxRetries > 10)) push('maxRetries', 'must be integer 1–10');
+  if ('historySize' in settings && (!isInt(settings.historySize) || settings.historySize < 1 || settings.historySize > 200)) push('historySize', 'must be integer 1–200');
+  ['enableMonthlyArchive','enableUpdateDetection','enableNotifications','enableTimeWindow'].forEach(function(k){
+    if (k in settings && !isBool(settings[k])) push(k, 'must be boolean');
+  });
+  ['sourceFolderName','archiveFolderId','masterDocId','sourceFileNamePattern','exclusionPatterns'].forEach(function(k){
+    if (k in settings && !isStr(settings[k])) push(k, 'must be string');
+  });
+  ['syncWindowStart','syncWindowEnd'].forEach(function(k){
+    if (k in settings && !isHHMM(settings[k])) push(k, 'must be HH:MM (24h)');
+  });
+  return errors.length === 0 ? { ok: true } : { ok: false, errors: errors };
+}
+
 function updateSettings(settings) {
+  var v = validateSettings_(settings || {});
+  if (!v.ok) {
+    return { success: false, error: 'VALIDATION_FAILED', errors: v.errors };
+  }
   var toSave = {};
   for (var camelKey in SETTINGS_KEY_MAP_) {
     if (camelKey in settings) {
@@ -236,7 +318,6 @@ function updateSettings(settings) {
     }
   }
   var props = PropertiesService.getScriptProperties();
-  // Merge toSave into existing persisted overrides
   var existing = {};
   try { existing = JSON.parse(props.getProperty('CONFIG_OVERRIDES') || '{}'); } catch (_) {}
   Object.assign(existing, toSave);
@@ -289,32 +370,37 @@ function getFiles() {
 }
 
 function runSync() {
-  if (!isWithinTimeWindow_()) {
-    return { success: true, result: { synced: 0, updated: 0, errors: 0, message: 'Outside sync time window — skipped' } };
-  }
-  const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
-  const result = appendMeetNotesToMasterRestAPI(docId);
+  return logRun_('runSync', function() {
+    if (!isWithinTimeWindow_()) {
+      return { success: true, result: { synced: 0, updated: 0, errors: 0, message: 'Outside sync time window — skipped' } };
+    }
+    const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
+    const result = appendMeetNotesToMasterRestAPI(docId);
 
-  return {
-    success: true,
-    result: result
-  };
+    return {
+      success: true,
+      result: result
+    };
+  });
 }
 
 function runArchive() {
-  const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
-  const timezone = Session.getScriptTimeZone() || 'UTC';
+  return logRun_('runArchive', function() {
+    const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
+    const timezone = Session.getScriptTimeZone() || 'UTC';
 
-  checkAndArchive_(docId, timezone, true);
+    checkAndArchive_(docId, timezone, true);
 
-  return {
-    success: true,
-    message: 'Archive created'
-  };
+    return {
+      success: true,
+      message: 'Archive created'
+    };
+  });
 }
 
 function appendMeetNotesToMasterRestAPI(docId) {
   const startTime = Date.now();
+  var deadlineMs = startTime + (5 * 60 * 1000);
   const timezone = Session.getScriptTimeZone() || 'UTC';
   const props = PropertiesService.getScriptProperties();
 
@@ -381,7 +467,11 @@ function appendMeetNotesToMasterRestAPI(docId) {
   }
 
   if (CONFIG.ARCHIVE_THRESHOLD_CHARS > 0) {
-    checkAndArchive_(docId, timezone);
+    try {
+      checkAndArchive_(docId, timezone);
+    } catch (e) {
+      console.error('Archive failed during sync (continuing sync run):', e && e.message || e);
+    }
   }
 
   const filesToProcess = toProcess.reverse();
@@ -390,9 +480,14 @@ function appendMeetNotesToMasterRestAPI(docId) {
   const updatedNames = [];
   let errorCount = 0;
 
-  for (const file of filesToProcess) {
+  for (var i = 0; i < filesToProcess.length; i++) {
+    if (Date.now() >= deadlineMs) {
+      console.warn('Deadline approaching — stopping at file ' + i + '/' + filesToProcess.length);
+      break;
+    }
+    var file = filesToProcess[i];
     try {
-      const rawText = apiCall_(() => exportFileAsText_(file.id));
+      const rawText = apiCallWithDeadline_(() => exportFileAsText_(file.id), deadlineMs);
       const participants = extractParticipants_(rawText);
       const cleanText = cleanGeminiText_(rawText);
       const isUpdate = updatedIds.indexOf(file.id) !== -1;
@@ -588,6 +683,7 @@ function showHelp() {
  */
 function appendMeetNotesToMaster() {
   const startTime = Date.now();
+  var deadlineMs = startTime + (5 * 60 * 1000);
   const docId = DocumentApp.getActiveDocument().getId();
   const timezone = Session.getScriptTimeZone() || 'UTC';
   const props = PropertiesService.getScriptProperties();
@@ -668,7 +764,11 @@ function appendMeetNotesToMaster() {
 
   // 3. Check for auto-archiving
   if (CONFIG.ARCHIVE_THRESHOLD_CHARS > 0) {
-    checkAndArchive_(docId, timezone);
+    try {
+      checkAndArchive_(docId, timezone);
+    } catch (e) {
+      console.error('Archive failed during sync (continuing sync run):', e && e.message || e);
+    }
   }
 
   // 4. Process files
@@ -678,10 +778,15 @@ function appendMeetNotesToMaster() {
   const updatedNames = [];
   let errorCount = 0;
 
-  for (const file of filesToProcess) {
+  for (var i = 0; i < filesToProcess.length; i++) {
+    if (Date.now() >= deadlineMs) {
+      console.warn('Deadline approaching — stopping at file ' + i + '/' + filesToProcess.length);
+      break;
+    }
+    var file = filesToProcess[i];
     try {
       console.log(`Processing: ${file.name}`);
-      const rawText = apiCall_(() => exportFileAsText_(file.id));
+      const rawText = apiCallWithDeadline_(() => exportFileAsText_(file.id), deadlineMs);
 
       const participants = extractParticipants_(rawText);
       const cleanText = cleanGeminiText_(rawText);
@@ -860,6 +965,7 @@ function checkAndArchive_(docId, timezone, force) {
 
   } catch (e) {
     console.error(`Archiving failed: ${e.message}`);
+    throw e;
   }
 }
 
@@ -927,15 +1033,25 @@ function showSyncHistory() {
  * Logs a sync run to the internal history.
  */
 function logSyncRun_(run) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(2000)) {
+    console.warn('[logSyncRun_] could not acquire lock; dropping this entry to avoid race');
+    return;
+  }
   try {
-    const props = PropertiesService.getScriptProperties();
-    run.docSize = parseInt(props.getProperty('estimatedChars') || '0', 10);
-    const history = JSON.parse(props.getProperty('syncHistory') || '[]');
-    history.unshift(run);
-    if (history.length > CONFIG.HISTORY_SIZE) history.length = CONFIG.HISTORY_SIZE;
-    props.setProperty('syncHistory', JSON.stringify(history));
-  } catch (e) {
-    console.error(`logSyncRun_ failed: ${e.message}`);
+    try {
+      const props = PropertiesService.getScriptProperties();
+      run.docSize = parseInt(props.getProperty('estimatedChars') || '0', 10);
+      var parsed = JSON.parse(props.getProperty('syncHistory') || '[]');
+      var history = Array.isArray(parsed) ? parsed : [];
+      history.unshift(run);
+      if (history.length > CONFIG.HISTORY_SIZE) history.length = CONFIG.HISTORY_SIZE;
+      props.setProperty('syncHistory', JSON.stringify(history));
+    } catch (e) {
+      console.error(`logSyncRun_ failed: ${e.message}`);
+    }
+  } finally {
+    try { lock.releaseLock(); } catch (_) {}
   }
 }
 
@@ -1070,6 +1186,46 @@ function exportFileAsText_(fileId) {
   return response.getContentText();
 }
 
+function appendRunLog_(entry) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(2000)) {
+    console.warn('[appendRunLog_] could not acquire lock; dropping this entry to avoid race');
+    return;
+  }
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var existing = [];
+    try {
+      var parsed = JSON.parse(props.getProperty('RUN_LOG') || '[]');
+      if (Array.isArray(parsed)) existing = parsed;
+    } catch (_) {}
+    existing.push(entry);
+    if (existing.length > 50) existing = existing.slice(existing.length - 50);
+    props.setProperty('RUN_LOG', JSON.stringify(existing));
+  } finally {
+    try { lock.releaseLock(); } catch (_) {}
+  }
+}
+
+function logRun_(action, fn) {
+  var startedAt = new Date().toISOString();
+  try {
+    var result = fn();
+    appendRunLog_({ startedAt: startedAt, finishedAt: new Date().toISOString(), action: action, ok: true });
+    return result;
+  } catch (e) {
+    appendRunLog_({
+      startedAt: startedAt,
+      finishedAt: new Date().toISOString(),
+      action: action,
+      ok: false,
+      error: String(e && e.message || e),
+      errorStack: String(e && e.stack || ''),
+    });
+    throw e;
+  }
+}
+
 /**
  * Helper to call APIs with automatic retries.
  */
@@ -1083,6 +1239,32 @@ function apiCall_(fn) {
       if (attempt < CONFIG.MAX_RETRIES - 1) {
         const delay = Math.pow(2, attempt) * 500;
         console.warn(`API error (attempt ${attempt + 1}/${CONFIG.MAX_RETRIES}): ${e.message}. Retrying in ${delay}ms`);
+        Utilities.sleep(delay);
+      }
+    }
+  }
+  throw lastError;
+}
+
+function apiCallWithDeadline_(fn, deadlineEpochMs) {
+  var lastError;
+  for (var attempt = 0; attempt < CONFIG.MAX_RETRIES; attempt++) {
+    if (Date.now() >= deadlineEpochMs) {
+      var dErr = new Error('DEADLINE_EXCEEDED');
+      dErr.code = 'DEADLINE_EXCEEDED';
+      throw dErr;
+    }
+    try { return fn(); }
+    catch (e) {
+      lastError = e;
+      if (attempt < CONFIG.MAX_RETRIES - 1) {
+        var delay = Math.pow(2, attempt) * 500;
+        if (Date.now() + delay >= deadlineEpochMs) {
+          var dErr2 = new Error('DEADLINE_EXCEEDED');
+          dErr2.code = 'DEADLINE_EXCEEDED';
+          throw dErr2;
+        }
+        console.warn('API error (attempt ' + (attempt + 1) + '/' + CONFIG.MAX_RETRIES + '): ' + e.message + '. Retrying in ' + delay + 'ms');
         Utilities.sleep(delay);
       }
     }
