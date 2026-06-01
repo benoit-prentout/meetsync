@@ -1,3 +1,6 @@
+import { api, ApiError } from '@/lib/api';
+import { pushAlarmOutcome } from '@/lib/alarmOutcomes';
+
 async function setupAlarm() {
   const { autoSyncEnabled, autoSyncIntervalMinutes } = await chrome.storage.sync.get([
     'autoSyncEnabled',
@@ -18,25 +21,44 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   ]);
   if (!deploymentUrl || !autoSyncEnabled) return;
 
+  const startedAt = Date.now();
+  let token: string;
   try {
-    const token = await new Promise<string>((resolve, reject) => {
-      chrome.identity.getAuthToken({ interactive: false }, (token) => {
-        if (chrome.runtime.lastError || !token) {
+    token = await new Promise<string>((resolve, reject) => {
+      chrome.identity.getAuthToken({ interactive: false }, (t) => {
+        if (chrome.runtime.lastError || !t) {
           reject(new Error(chrome.runtime.lastError?.message ?? 'No auth token'));
         } else {
-          resolve(token as string);
+          resolve(t as string);
         }
       });
     });
+  } catch (e) {
+    await pushAlarmOutcome({
+      timestamp: new Date(startedAt).toISOString(),
+      ok: false,
+      durationMs: Date.now() - startedAt,
+      error: 'AUTH_TOKEN: ' + (e instanceof Error ? e.message : String(e)),
+    });
+    return;
+  }
 
-    const url = new URL(deploymentUrl as string);
-    url.searchParams.set('action', 'sync');
-    url.searchParams.set('token', token);
-    await fetch(url.toString(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+  try {
+    await api.sync(token);
+    await pushAlarmOutcome({
+      timestamp: new Date(startedAt).toISOString(),
+      ok: true,
+      durationMs: Date.now() - startedAt,
     });
   } catch (e) {
+    const code = e instanceof ApiError ? e.code : 'UNKNOWN';
+    const message = e instanceof Error ? e.message : String(e);
+    await pushAlarmOutcome({
+      timestamp: new Date(startedAt).toISOString(),
+      ok: false,
+      durationMs: Date.now() - startedAt,
+      error: `${code}: ${message}`,
+    });
     console.error('[auto-sync] failed:', e);
   }
 });
