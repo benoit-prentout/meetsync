@@ -338,28 +338,32 @@ function getFiles() {
 }
 
 function runSync() {
-  if (!isWithinTimeWindow_()) {
-    return { success: true, result: { synced: 0, updated: 0, errors: 0, message: 'Outside sync time window — skipped' } };
-  }
-  const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
-  const result = appendMeetNotesToMasterRestAPI(docId);
+  return logRun_('runSync', function() {
+    if (!isWithinTimeWindow_()) {
+      return { success: true, result: { synced: 0, updated: 0, errors: 0, message: 'Outside sync time window — skipped' } };
+    }
+    const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
+    const result = appendMeetNotesToMasterRestAPI(docId);
 
-  return {
-    success: true,
-    result: result
-  };
+    return {
+      success: true,
+      result: result
+    };
+  });
 }
 
 function runArchive() {
-  const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
-  const timezone = Session.getScriptTimeZone() || 'UTC';
+  return logRun_('runArchive', function() {
+    const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
+    const timezone = Session.getScriptTimeZone() || 'UTC';
 
-  checkAndArchive_(docId, timezone, true);
+    checkAndArchive_(docId, timezone, true);
 
-  return {
-    success: true,
-    message: 'Archive created'
-  };
+    return {
+      success: true,
+      message: 'Archive created'
+    };
+  });
 }
 
 function appendMeetNotesToMasterRestAPI(docId) {
@@ -1129,6 +1133,34 @@ function exportFileAsText_(fileId) {
     throw new Error(`Export failed (${response.getResponseCode()}): ${response.getContentText().slice(0, 200)}`);
   }
   return response.getContentText();
+}
+
+function appendRunLog_(entry) {
+  var props = PropertiesService.getScriptProperties();
+  var existing = [];
+  try { existing = JSON.parse(props.getProperty('RUN_LOG') || '[]'); } catch (_) {}
+  existing.push(entry);
+  if (existing.length > 50) existing = existing.slice(existing.length - 50);
+  props.setProperty('RUN_LOG', JSON.stringify(existing));
+}
+
+function logRun_(action, fn) {
+  var startedAt = new Date().toISOString();
+  try {
+    var result = fn();
+    appendRunLog_({ startedAt: startedAt, finishedAt: new Date().toISOString(), action: action, ok: true });
+    return result;
+  } catch (e) {
+    appendRunLog_({
+      startedAt: startedAt,
+      finishedAt: new Date().toISOString(),
+      action: action,
+      ok: false,
+      error: String(e && e.message || e),
+      errorStack: String(e && e.stack || ''),
+    });
+    throw e;
+  }
 }
 
 /**
