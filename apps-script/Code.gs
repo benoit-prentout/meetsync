@@ -1021,15 +1021,21 @@ function showSyncHistory() {
  * Logs a sync run to the internal history.
  */
 function logSyncRun_(run) {
+  var lock = LockService.getScriptLock();
   try {
-    const props = PropertiesService.getScriptProperties();
-    run.docSize = parseInt(props.getProperty('estimatedChars') || '0', 10);
-    const history = JSON.parse(props.getProperty('syncHistory') || '[]');
-    history.unshift(run);
-    if (history.length > CONFIG.HISTORY_SIZE) history.length = CONFIG.HISTORY_SIZE;
-    props.setProperty('syncHistory', JSON.stringify(history));
-  } catch (e) {
-    console.error(`logSyncRun_ failed: ${e.message}`);
+    lock.tryLock(2000);
+    try {
+      const props = PropertiesService.getScriptProperties();
+      run.docSize = parseInt(props.getProperty('estimatedChars') || '0', 10);
+      const history = JSON.parse(props.getProperty('syncHistory') || '[]');
+      history.unshift(run);
+      if (history.length > CONFIG.HISTORY_SIZE) history.length = CONFIG.HISTORY_SIZE;
+      props.setProperty('syncHistory', JSON.stringify(history));
+    } catch (e) {
+      console.error(`logSyncRun_ failed: ${e.message}`);
+    }
+  } finally {
+    try { lock.releaseLock(); } catch (_) {}
   }
 }
 
@@ -1165,12 +1171,18 @@ function exportFileAsText_(fileId) {
 }
 
 function appendRunLog_(entry) {
-  var props = PropertiesService.getScriptProperties();
-  var existing = [];
-  try { existing = JSON.parse(props.getProperty('RUN_LOG') || '[]'); } catch (_) {}
-  existing.push(entry);
-  if (existing.length > 50) existing = existing.slice(existing.length - 50);
-  props.setProperty('RUN_LOG', JSON.stringify(existing));
+  var lock = LockService.getScriptLock();
+  try {
+    lock.tryLock(2000);
+    var props = PropertiesService.getScriptProperties();
+    var existing = [];
+    try { existing = JSON.parse(props.getProperty('RUN_LOG') || '[]'); } catch (_) {}
+    existing.push(entry);
+    if (existing.length > 50) existing = existing.slice(existing.length - 50);
+    props.setProperty('RUN_LOG', JSON.stringify(existing));
+  } finally {
+    try { lock.releaseLock(); } catch (_) {}
+  }
 }
 
 function logRun_(action, fn) {
