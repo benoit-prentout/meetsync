@@ -954,6 +954,7 @@ function checkAndArchive_(docId, timezone, force) {
 
   } catch (e) {
     console.error(`Archiving failed: ${e.message}`);
+    throw e;
   }
 }
 
