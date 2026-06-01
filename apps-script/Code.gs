@@ -364,6 +364,7 @@ function runArchive() {
 
 function appendMeetNotesToMasterRestAPI(docId) {
   const startTime = Date.now();
+  var deadlineMs = startTime + (5 * 60 * 1000);
   const timezone = Session.getScriptTimeZone() || 'UTC';
   const props = PropertiesService.getScriptProperties();
 
@@ -439,7 +440,12 @@ function appendMeetNotesToMasterRestAPI(docId) {
   const updatedNames = [];
   let errorCount = 0;
 
-  for (const file of filesToProcess) {
+  for (var i = 0; i < filesToProcess.length; i++) {
+    if (Date.now() >= deadlineMs) {
+      console.warn('Deadline approaching — stopping at file ' + i + '/' + filesToProcess.length);
+      break;
+    }
+    var file = filesToProcess[i];
     try {
       const rawText = apiCall_(() => exportFileAsText_(file.id));
       const participants = extractParticipants_(rawText);
@@ -637,6 +643,7 @@ function showHelp() {
  */
 function appendMeetNotesToMaster() {
   const startTime = Date.now();
+  var deadlineMs = startTime + (5 * 60 * 1000);
   const docId = DocumentApp.getActiveDocument().getId();
   const timezone = Session.getScriptTimeZone() || 'UTC';
   const props = PropertiesService.getScriptProperties();
@@ -727,7 +734,12 @@ function appendMeetNotesToMaster() {
   const updatedNames = [];
   let errorCount = 0;
 
-  for (const file of filesToProcess) {
+  for (var i = 0; i < filesToProcess.length; i++) {
+    if (Date.now() >= deadlineMs) {
+      console.warn('Deadline approaching — stopping at file ' + i + '/' + filesToProcess.length);
+      break;
+    }
+    var file = filesToProcess[i];
     try {
       console.log(`Processing: ${file.name}`);
       const rawText = apiCall_(() => exportFileAsText_(file.id));
@@ -1132,6 +1144,32 @@ function apiCall_(fn) {
       if (attempt < CONFIG.MAX_RETRIES - 1) {
         const delay = Math.pow(2, attempt) * 500;
         console.warn(`API error (attempt ${attempt + 1}/${CONFIG.MAX_RETRIES}): ${e.message}. Retrying in ${delay}ms`);
+        Utilities.sleep(delay);
+      }
+    }
+  }
+  throw lastError;
+}
+
+function apiCallWithDeadline_(fn, deadlineEpochMs) {
+  var lastError;
+  for (var attempt = 0; attempt < CONFIG.MAX_RETRIES; attempt++) {
+    if (Date.now() >= deadlineEpochMs) {
+      var dErr = new Error('DEADLINE_EXCEEDED');
+      dErr.code = 'DEADLINE_EXCEEDED';
+      throw dErr;
+    }
+    try { return fn(); }
+    catch (e) {
+      lastError = e;
+      if (attempt < CONFIG.MAX_RETRIES - 1) {
+        var delay = Math.pow(2, attempt) * 500;
+        if (Date.now() + delay >= deadlineEpochMs) {
+          var dErr2 = new Error('DEADLINE_EXCEEDED');
+          dErr2.code = 'DEADLINE_EXCEEDED';
+          throw dErr2;
+        }
+        console.warn('API error (attempt ' + (attempt + 1) + '/' + CONFIG.MAX_RETRIES + '): ' + e.message + '. Retrying in ' + delay + 'ms');
         Utilities.sleep(delay);
       }
     }
