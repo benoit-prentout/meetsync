@@ -205,6 +205,24 @@ describe('fetchApi error mapping', () => {
     const err = await fetchApiAndCatch();
     expect(err.code).toBe('BACKEND');
   });
+
+  it('maps AbortError to code=TIMEOUT', async () => {
+    mockUrl();
+    globalThis.fetch = vi.fn().mockImplementationOnce(() => {
+      const err = new Error('aborted');
+      err.name = 'AbortError';
+      return Promise.reject(err);
+    }) as any;
+    const err = await fetchApiAndCatch();
+    expect(err.code).toBe('TIMEOUT');
+  });
+
+  it('maps generic network error to code=NETWORK', async () => {
+    mockUrl();
+    globalThis.fetch = vi.fn().mockImplementationOnce(() => Promise.reject(new Error('Failed to fetch'))) as any;
+    const err = await fetchApiAndCatch();
+    expect(err.code).toBe('NETWORK');
+  });
 });
 
 describe('api - status response passthrough', () => {

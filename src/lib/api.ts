@@ -40,12 +40,26 @@ async function fetchApi<T>(
     url.searchParams.set('token', accessToken);
   }
 
-  const response = await fetch(url.toString(), {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  const controller = new AbortController();
+  const timeoutMs = 90_000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
+    });
+  } catch (e) {
+    if ((e as { name?: string }).name === 'AbortError') {
+      throw new ApiError(`Request timed out after ${timeoutMs / 1000}s`, undefined, 'TIMEOUT');
+    }
+    throw new ApiError(`Network error: ${(e as Error).message}`, undefined, 'NETWORK');
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     throw new ApiError(
