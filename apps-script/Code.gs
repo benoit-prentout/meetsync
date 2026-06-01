@@ -191,7 +191,10 @@ function getDiagnostics() {
   var overrides = {};
   try { overrides = JSON.parse(props.getProperty('CONFIG_OVERRIDES') || '{}'); } catch (_) {}
   var runLog = [];
-  try { runLog = JSON.parse(props.getProperty('RUN_LOG') || '[]'); } catch (_) {}
+  try {
+    var parsed = JSON.parse(props.getProperty('RUN_LOG') || '[]');
+    if (Array.isArray(parsed)) runLog = parsed;
+  } catch (_) {}
   var lastError = null;
   for (var i = runLog.length - 1; i >= 0; i--) {
     if (!runLog[i].ok) { lastError = runLog[i]; break; }
@@ -1031,12 +1034,16 @@ function showSyncHistory() {
  */
 function logSyncRun_(run) {
   var lock = LockService.getScriptLock();
+  if (!lock.tryLock(2000)) {
+    console.warn('[logSyncRun_] could not acquire lock; dropping this entry to avoid race');
+    return;
+  }
   try {
-    lock.tryLock(2000);
     try {
       const props = PropertiesService.getScriptProperties();
       run.docSize = parseInt(props.getProperty('estimatedChars') || '0', 10);
-      const history = JSON.parse(props.getProperty('syncHistory') || '[]');
+      var parsed = JSON.parse(props.getProperty('syncHistory') || '[]');
+      var history = Array.isArray(parsed) ? parsed : [];
       history.unshift(run);
       if (history.length > CONFIG.HISTORY_SIZE) history.length = CONFIG.HISTORY_SIZE;
       props.setProperty('syncHistory', JSON.stringify(history));
@@ -1181,11 +1188,17 @@ function exportFileAsText_(fileId) {
 
 function appendRunLog_(entry) {
   var lock = LockService.getScriptLock();
+  if (!lock.tryLock(2000)) {
+    console.warn('[appendRunLog_] could not acquire lock; dropping this entry to avoid race');
+    return;
+  }
   try {
-    lock.tryLock(2000);
     var props = PropertiesService.getScriptProperties();
     var existing = [];
-    try { existing = JSON.parse(props.getProperty('RUN_LOG') || '[]'); } catch (_) {}
+    try {
+      var parsed = JSON.parse(props.getProperty('RUN_LOG') || '[]');
+      if (Array.isArray(parsed)) existing = parsed;
+    } catch (_) {}
     existing.push(entry);
     if (existing.length > 50) existing = existing.slice(existing.length - 50);
     props.setProperty('RUN_LOG', JSON.stringify(existing));
