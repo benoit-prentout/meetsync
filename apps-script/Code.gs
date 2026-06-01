@@ -170,7 +170,7 @@ function handleRequest(e) {
       case 'files':
         result = getFiles();
         break;
-      case 'getDiagnostics':
+      case 'diagnostics':
         result = getDiagnostics();
         break;
       default:
