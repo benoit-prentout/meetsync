@@ -480,7 +480,7 @@ function appendMeetNotesToMasterRestAPI(docId) {
     }
     var file = filesToProcess[i];
     try {
-      const rawText = apiCall_(() => exportFileAsText_(file.id));
+      const rawText = apiCallWithDeadline_(() => exportFileAsText_(file.id), deadlineMs);
       const participants = extractParticipants_(rawText);
       const cleanText = cleanGeminiText_(rawText);
       const isUpdate = updatedIds.indexOf(file.id) !== -1;
@@ -775,7 +775,7 @@ function appendMeetNotesToMaster() {
     var file = filesToProcess[i];
     try {
       console.log(`Processing: ${file.name}`);
-      const rawText = apiCall_(() => exportFileAsText_(file.id));
+      const rawText = apiCallWithDeadline_(() => exportFileAsText_(file.id), deadlineMs);
 
       const participants = extractParticipants_(rawText);
       const cleanText = cleanGeminiText_(rawText);
