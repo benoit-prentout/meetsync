@@ -464,7 +464,11 @@ function appendMeetNotesToMasterRestAPI(docId) {
   }
 
   if (CONFIG.ARCHIVE_THRESHOLD_CHARS > 0) {
-    checkAndArchive_(docId, timezone);
+    try {
+      checkAndArchive_(docId, timezone);
+    } catch (e) {
+      console.error('Archive failed during sync (continuing sync run):', e && e.message || e);
+    }
   }
 
   const filesToProcess = toProcess.reverse();
@@ -757,7 +761,11 @@ function appendMeetNotesToMaster() {
 
   // 3. Check for auto-archiving
   if (CONFIG.ARCHIVE_THRESHOLD_CHARS > 0) {
-    checkAndArchive_(docId, timezone);
+    try {
+      checkAndArchive_(docId, timezone);
+    } catch (e) {
+      console.error('Archive failed during sync (continuing sync run):', e && e.message || e);
+    }
   }
 
   // 4. Process files
