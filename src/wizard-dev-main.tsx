@@ -1,6 +1,5 @@
 import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { vi } from 'vitest';
 import './index.css';
 import { SetupWizard } from './components/SetupWizard';
 import { api, ApiError } from './lib/api';
@@ -50,15 +49,15 @@ function applyScenario(scenario: Scenario) {
         Promise.reject(new ApiError('Unauthorized'));
       break;
     case 'timeout':
-      (api as Record<string, unknown>).getStatus = vi.fn(() => Promise.reject(new ApiError('Request timed out after 90s', undefined, 'TIMEOUT')));
+      (api as Record<string, unknown>).getStatus = () => Promise.reject(new ApiError('Request timed out after 90s', undefined, 'TIMEOUT'));
       break;
     case 'validation-error':
-      (api as Record<string, unknown>).getStatus = vi.fn(() => Promise.reject(new ApiError('VALIDATION_FAILED', 200, 'VALIDATION_FAILED', [
+      (api as Record<string, unknown>).getStatus = () => Promise.reject(new ApiError('VALIDATION_FAILED', 200, 'VALIDATION_FAILED', [
         { field: 'maxFilesPerRun', reason: 'must be integer 1–100' },
-      ])));
+      ]));
       break;
     case 'auth-email-mismatch':
-      (api as Record<string, unknown>).getStatus = vi.fn(() => Promise.reject(new ApiError('Forbidden — email mismatch', 403, 'FORBIDDEN')));
+      (api as Record<string, unknown>).getStatus = () => Promise.reject(new ApiError('Forbidden — email mismatch', 403, 'FORBIDDEN'));
       break;
   }
 }
