@@ -170,6 +170,9 @@ function handleRequest(e) {
       case 'files':
         result = getFiles();
         break;
+      case 'getDiagnostics':
+        result = getDiagnostics();
+        break;
       default:
         throw new Error(`Unknown action: ${action}`);
     }
@@ -181,6 +184,32 @@ function handleRequest(e) {
       error: error.message
     })).setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+function getDiagnostics() {
+  var props = PropertiesService.getScriptProperties();
+  var overrides = {};
+  try { overrides = JSON.parse(props.getProperty('CONFIG_OVERRIDES') || '{}'); } catch (_) {}
+  var runLog = [];
+  try { runLog = JSON.parse(props.getProperty('RUN_LOG') || '[]'); } catch (_) {}
+  var lastError = null;
+  for (var i = runLog.length - 1; i >= 0; i--) {
+    if (!runLog[i].ok) { lastError = runLog[i]; break; }
+  }
+  var sessionEmail = '';
+  try { sessionEmail = Session.getActiveUser().getEmail() || ''; } catch (_) {}
+  return {
+    success: true,
+    diagnostics: {
+      scriptIntegrity: SCRIPT_INTEGRITY,
+      configOverrides: overrides,
+      ownerEmail: props.getProperty('OWNER_EMAIL') || null,
+      sessionUserEmpty: !sessionEmail,
+      scriptTimezone: Session.getScriptTimeZone(),
+      lastError: lastError,
+      runLogSize: runLog.length,
+    },
+  };
 }
 
 function getStatus() {
