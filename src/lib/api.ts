@@ -49,8 +49,12 @@ async function fetchApi<T>(
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string> | undefined),
       },
-      signal: controller.signal,
+      // AbortSignal.any: Chrome 116+
+      signal: options.signal
+        ? AbortSignal.any([options.signal, controller.signal])
+        : controller.signal,
     });
   } catch (e) {
     if ((e as { name?: string }).name === 'AbortError') {
