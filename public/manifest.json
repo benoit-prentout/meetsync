@@ -9,7 +9,8 @@
     "128": "icons/icon128.png"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "permissions": ["identity", "identity.email", "storage", "alarms"],
   "host_permissions": ["https://script.google.com/*", "https://script.googleusercontent.com/*"],
