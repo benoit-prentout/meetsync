@@ -2,7 +2,7 @@ import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import { SetupWizard } from './components/SetupWizard';
-import { api } from './lib/api';
+import { api, ApiError } from './lib/api';
 
 // --- Chrome mock (no deploymentUrl → wizard renders) ---
 (window as unknown as Record<string, unknown>).chrome = {
@@ -22,10 +22,16 @@ import { api } from './lib/api';
 };
 
 // --- Scenario control ---
-type Scenario = 'success' | 'html-error' | 'network-error' | 'auth-error';
+type Scenario =
+  | 'success'
+  | 'html-error'
+  | 'network-error'
+  | 'auth-error'
+  | 'timeout'
+  | 'validation-error'
+  | 'auth-email-mismatch';
 
 function applyScenario(scenario: Scenario) {
-  const { ApiError } = api as unknown as { ApiError: new (msg: string) => Error };
   switch (scenario) {
     case 'success':
       (api as Record<string, unknown>).getStatus = () => Promise.resolve({ success: true });
@@ -40,7 +46,18 @@ function applyScenario(scenario: Scenario) {
       break;
     case 'auth-error':
       (api as Record<string, unknown>).getStatus = () =>
-        Promise.reject(ApiError ? new ApiError('Unauthorized') : new Error('Unauthorized'));
+        Promise.reject(new ApiError('Unauthorized'));
+      break;
+    case 'timeout':
+      (api as Record<string, unknown>).getStatus = () => Promise.reject(new ApiError('Request timed out after 90s', undefined, 'TIMEOUT'));
+      break;
+    case 'validation-error':
+      (api as Record<string, unknown>).getStatus = () => Promise.reject(new ApiError('VALIDATION_FAILED', 200, 'VALIDATION_FAILED', [
+        { field: 'maxFilesPerRun', reason: 'must be integer 1–100' },
+      ]));
+      break;
+    case 'auth-email-mismatch':
+      (api as Record<string, unknown>).getStatus = () => Promise.reject(new ApiError('Forbidden — email mismatch', 403, 'FORBIDDEN'));
       break;
   }
 }
@@ -48,10 +65,13 @@ function applyScenario(scenario: Scenario) {
 applyScenario('success');
 
 const SCENARIOS: { id: Scenario; label: string; color: string }[] = [
-  { id: 'success',      label: '✓ Success',         color: 'bg-green-100 border-green-400 text-green-800' },
-  { id: 'html-error',   label: '✗ Missing doGet',   color: 'bg-orange-100 border-orange-400 text-orange-800' },
-  { id: 'network-error',label: '✗ Network error',   color: 'bg-red-100 border-red-400 text-red-800' },
-  { id: 'auth-error',   label: '✗ Auth failed',     color: 'bg-yellow-100 border-yellow-400 text-yellow-800' },
+  { id: 'success',             label: '✓ Success',               color: 'bg-green-100 border-green-400 text-green-800' },
+  { id: 'html-error',          label: '✗ Missing doGet',         color: 'bg-orange-100 border-orange-400 text-orange-800' },
+  { id: 'network-error',       label: '✗ Network error',         color: 'bg-red-100 border-red-400 text-red-800' },
+  { id: 'auth-error',          label: '✗ Auth failed',           color: 'bg-yellow-100 border-yellow-400 text-yellow-800' },
+  { id: 'timeout',             label: '⏱ Timeout (90s)',         color: 'bg-slate-100 border-slate-400 text-slate-800' },
+  { id: 'validation-error',    label: '✗ Validation failed',     color: 'bg-amber-100 border-amber-400 text-amber-800' },
+  { id: 'auth-email-mismatch', label: '✗ Email mismatch (403)',  color: 'bg-pink-100 border-pink-400 text-pink-800' },
 ];
 
 function WizardPreview() {

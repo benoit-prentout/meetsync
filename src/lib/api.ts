@@ -1,9 +1,12 @@
 import type { ApiResponse, StatusResponse, Settings, SyncEvent, SyncFile } from '@/types';
+import { mapStatusToCode, type ApiErrorCode } from './apiErrorCode';
 
 export class ApiError extends Error {
   constructor(
     message: string,
-    public statusCode?: number
+    public statusCode?: number,
+    public code: ApiErrorCode = 'UNKNOWN',
+    public fieldErrors?: Array<{ field: string; reason: string }>,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -29,7 +32,7 @@ async function fetchApi<T>(
   try {
     url = new URL(base);
   } catch {
-    throw new ApiError('Invalid deployment URL. Please check your setup settings.');
+    throw new ApiError('Invalid deployment URL. Please check your setup settings.', undefined, 'BACKEND');
   }
   url.searchParams.set('action', endpoint);
   // Apps Script web apps strip Authorization headers; token must be a query param
@@ -37,21 +40,45 @@ async function fetchApi<T>(
     url.searchParams.set('token', accessToken);
   }
 
-  const response = await fetch(url.toString(), {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  const controller = new AbortController();
+  const timeoutMs = 90_000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string> | undefined),
+      },
+      // AbortSignal.any: Chrome 116+
+      signal: options.signal
+        ? AbortSignal.any([options.signal, controller.signal])
+        : controller.signal,
+    });
+  } catch (e) {
+    if ((e as { name?: string }).name === 'AbortError') {
+      throw new ApiError(`Request timed out after ${timeoutMs / 1000}s`, undefined, 'TIMEOUT');
+    }
+    throw new ApiError(`Network error: ${(e as Error).message}`, undefined, 'NETWORK');
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
-    throw new ApiError(`API request failed: ${response.statusText}`, response.status);
+    throw new ApiError(
+      `API request failed: ${response.statusText}`,
+      response.status,
+      mapStatusToCode(response.status, undefined),
+    );
   }
 
   const text = await response.text();
   if (text.trimStart().startsWith('<')) {
     throw new ApiError(
-      'Apps Script returned HTML instead of JSON. This usually means the deployed version is missing the doGet function. In the Apps Script editor: save Code.gs, then deploy a new version (not an existing version).'
+      'Apps Script returned HTML instead of JSON. This usually means the deployed version is missing the doGet function. In the Apps Script editor: save Code.gs, then deploy a new version (not an existing version).',
+      undefined,
+      'HTML_RESPONSE',
     );
   }
 
@@ -59,11 +86,20 @@ async function fetchApi<T>(
   try {
     data = JSON.parse(text);
   } catch {
-    throw new ApiError(`Invalid JSON response from server: ${text.slice(0, 100)}`);
+    throw new ApiError(
+      `Invalid JSON response from server: ${text.slice(0, 100)}`,
+      undefined,
+      'INVALID_JSON',
+    );
   }
 
   if (!data.success) {
-    throw new ApiError(data.error || 'Unknown error');
+    const code = mapStatusToCode(undefined, data);
+    const fieldErrors =
+      code === 'VALIDATION_FAILED' && Array.isArray((data as unknown as { errors?: unknown }).errors)
+        ? ((data as unknown as { errors: Array<{ field: string; reason: string }> }).errors)
+        : undefined;
+    throw new ApiError(data.error || 'Unknown error', undefined, code, fieldErrors);
   }
 
   return data as T;

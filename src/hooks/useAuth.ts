@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { api } from '@/lib/api';
 
+let reauthInFlight: Promise<string | null> | null = null;
+
 export function useAuth() {
   const { setAuthenticated, setLoading, setError, accessToken, isAuthenticated } = useSettingsStore();
   
@@ -66,9 +68,25 @@ export function useAuth() {
     useSettingsStore.getState().logout();
   }, [accessToken]);
   
+  const reauth = useCallback(async (): Promise<string | null> => {
+    if (reauthInFlight) return reauthInFlight;
+    reauthInFlight = (async () => {
+      try {
+        const token = await signIn();
+        return token ?? null;
+      } catch {
+        return null;
+      } finally {
+        reauthInFlight = null;
+      }
+    })();
+    return reauthInFlight;
+  }, [signIn]);
+
   return {
     signIn,
     signOut,
+    reauth,
     isAuthenticated,
     accessToken,
   };
