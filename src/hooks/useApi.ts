@@ -23,7 +23,7 @@ export function useApi() {
     if (!accessToken) throw new Error('Not authenticated');
     return dedupe('getStatus', async () => {
       setLoading(true);
-
+      let isReauthing = false;
       try {
         const response = await api.getStatus(accessToken);
         setStatus(response.lastSync || '', response.docSize);
@@ -32,11 +32,12 @@ export function useApi() {
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to get status');
         if (error instanceof ApiError && error.code === 'UNAUTHORIZED') {
+          isReauthing = true;
           reauth().catch(() => {});
         }
         throw error;
       } finally {
-        setLoading(false);
+        if (!isReauthing) setLoading(false);
       }
     });
   }, [accessToken, setLoading, setError, setStatus, setArchiveEvents, reauth]);
@@ -80,7 +81,7 @@ export function useApi() {
     return dedupe('getSettings', async () => {
       setLoading(true);
       setError(null);
-
+      let isReauthing = false;
       try {
         const response = await api.getSettings(accessToken);
         if (response.settings) setSettings(response.settings);
@@ -88,11 +89,12 @@ export function useApi() {
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to get settings');
         if (error instanceof ApiError && error.code === 'UNAUTHORIZED') {
+          isReauthing = true;
           reauth().catch(() => {});
         }
         throw error;
       } finally {
-        setLoading(false);
+        if (!isReauthing) setLoading(false);
       }
     });
   }, [accessToken, setLoading, setSettings, setError, reauth]);
@@ -102,7 +104,7 @@ export function useApi() {
     return dedupe('sync', async () => {
       setLoading(true);
       setError(null);
-
+      let isReauthing = false;
       try {
         const response = await api.sync(accessToken);
         await Promise.all([getStatus(), getHistory(), getFiles()]);
@@ -110,11 +112,12 @@ export function useApi() {
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Sync failed');
         if (error instanceof ApiError && error.code === 'UNAUTHORIZED') {
+          isReauthing = true;
           reauth().catch(() => {});
         }
         throw error;
       } finally {
-        setLoading(false);
+        if (!isReauthing) setLoading(false);
       }
     });
   }, [accessToken, setLoading, setError, getStatus, getHistory, getFiles, reauth]);
@@ -124,7 +127,7 @@ export function useApi() {
     return dedupe('archive', async () => {
       setLoading(true);
       setError(null);
-
+      let isReauthing = false;
       try {
         const response = await api.archive(accessToken);
         await Promise.all([getStatus(), getHistory()]);
@@ -132,11 +135,12 @@ export function useApi() {
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Archive failed');
         if (error instanceof ApiError && error.code === 'UNAUTHORIZED') {
+          isReauthing = true;
           reauth().catch(() => {});
         }
         throw error;
       } finally {
-        setLoading(false);
+        if (!isReauthing) setLoading(false);
       }
     });
   }, [accessToken, setLoading, setError, getStatus, getHistory, reauth]);
@@ -146,7 +150,7 @@ export function useApi() {
     return dedupe('updateSettings:' + JSON.stringify(settings), async () => {
       setLoading(true);
       setError(null);
-
+      let isReauthing = false;
       try {
         const response = await api.updateSettings(accessToken, settings);
         await getStatus();
@@ -154,11 +158,12 @@ export function useApi() {
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to update settings');
         if (error instanceof ApiError && error.code === 'UNAUTHORIZED') {
+          isReauthing = true;
           reauth().catch(() => {});
         }
         throw error;
       } finally {
-        setLoading(false);
+        if (!isReauthing) setLoading(false);
       }
     });
   }, [accessToken, setLoading, setError, getStatus, reauth]);
