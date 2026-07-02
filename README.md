@@ -11,10 +11,22 @@ Automatically consolidate all your **Google Meet notes** into a single **Master 
 
 The easiest way to use this tool is to copy the pre-configured template:
 
-1. **[Click here to Make a Copy of the Template](https://docs.google.com/document/d/15V0urYyn8lbXGBYzxDKf2-C8aAyOO6DXpAgEPKjRTg0/copy)**
+1. **[Click here to Make a Copy of the Template](https://docs.google.com/document/d/1ptU9lzwjX2LfBi_IVZeT00YCLrkmm5D25KmqeqEwB_o/copy)**
 2. In your new document, refresh the page.
 3. A new **🚀 NotebookLM** menu will appear.
 4. Run **🔄 Sync Now** and follow the authorization prompts.
+
+> ### 🔧 Recreating the template (if the link above ever breaks)
+>
+> 1. Create a **new empty Google Doc** at [docs.google.com/document/create](https://docs.google.com/document/create)
+> 2. Open **Extensions > Apps Script**, delete the default code, and paste the entire content of [`apps-script/Code.gs`](apps-script/Code.gs)
+> 3. Name the project **"Sync NotebookLM"** and click **Save**
+> 4. In the Apps Script editor, add the **Drive API** (v3) and **Docs API** (v1) via the **Services** panel (+)
+> 5. Click **Deploy > New deployment > Web app**:
+>    - Execute as: **Me**
+>    - Who has access: **Anyone**
+> 6. Copy the resulting **deployment URL** (`https://script.google.com/macros/s/{id}/exec`)
+> 7. Update the link in this README (line 14 above) with the new **doc URL** + `/copy` at the end
 
 ---
 
