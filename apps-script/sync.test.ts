@@ -1,6 +1,6 @@
 // Sync path tests against the REAL Code.gs (runSync / appendMeetNotesToMaster) via loadCode.
 import { describe, it, expect, vi } from 'vitest';
-import { loadCode } from './loadCode';
+import { loadCode, fillTo } from './loadCode';
 
 const DOC = 'masterDoc000';
 const DOC_MIME = 'application/vnd.google-apps.document';
@@ -312,5 +312,43 @@ describe('sync/archive concurrency lock (B2)', () => {
     s.gs.forceArchive();
     expect(copy).not.toHaveBeenCalled();
     expect(s.alerts.at(-1)).toContain('Another sync or archive is already running');
+  });
+});
+
+describe('sync history stays under the 9 KB property limit (F1b)', () => {
+  const old = (i: number, pad: string) => ({
+    date: `2026-08-01T00:00:${String(i).padStart(2, '0')}.000Z`, synced: 1, updated: 0, errors: 0,
+    duration: 100, syncedNames: ['Old meeting ' + i + pad], updatedNames: [], docSize: 0,
+  });
+
+  it('records a successful run when the stored history is full, keeping the newest entries', () => {
+    const prev = fillTo(old, 9200);
+    const s = setup({ files: [note('a1')], props: { syncHistory: JSON.stringify(prev) }, config: { HISTORY_SIZE: 200 } });
+    expect(s.gs.runSync()).toMatchObject({ success: true, result: { synced: 1 } });
+    expect(s.props.syncHistory.length).toBeLessThanOrEqual(9000);
+    const h = JSON.parse(s.props.syncHistory);
+    expect(h[0].syncedNames).toEqual(['Notes by Gemini a1']);
+    expect(h[1]).toEqual(prev[0]);
+    expect(JSON.parse(s.props.RUN_LOG).at(-1)).toMatchObject({ action: 'runSync', ok: true });
+  });
+
+  it('caps names per entry (20) and name length (80); counts stay exact', () => {
+    const files = Array.from({ length: 25 }, (_, i) => note('n' + i, { name: `Notes by Gemini ${i} ` + 'é'.repeat(300) }));
+    const s = setup({ files, config: { MAX_FILES_PER_RUN: 25 } });
+    expect(s.gs.runSync().result.synced).toBe(25);
+    const [entry] = JSON.parse(s.props.syncHistory);
+    expect(entry.synced).toBe(25);
+    expect(entry.syncedNames).toHaveLength(20);
+    expect(Math.max(...entry.syncedNames.map((n: string) => n.length))).toBeLessThanOrEqual(80);
+  });
+
+  it('keeps the getHistory() shape the extension expects (SyncEvent)', () => {
+    const s = setup({ files: [note('a1')] });
+    s.gs.runSync();
+    const [ev] = s.gs.getHistory().history;
+    expect(Object.keys(ev).sort()).toEqual(['duration', 'filesProcessed', 'id', 'message', 'status', 'syncedNames', 'timestamp', 'updatedNames']);
+    expect(ev).toMatchObject({ filesProcessed: 1, status: 'success', message: '1 synced, 0 updated', syncedNames: ['Notes by Gemini a1'], updatedNames: [] });
+    expect(ev.id).toBe(ev.timestamp);
+    expect(typeof ev.duration).toBe('number');
   });
 });

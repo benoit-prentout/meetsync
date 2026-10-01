@@ -32,16 +32,22 @@ export function loadCode(opts: LoadCodeOptions = {}): Record<string, any> {
   const session = opts.session ?? {};
   const fetch: FetchStub = opts.fetch ?? (() => { throw new Error('UrlFetchApp.fetch not stubbed'); });
   const noop = () => {};
+  // Like Apps Script, reject property values over 9 KB.
+  const putProp = (k: string, v: string) => {
+    const s = String(v);
+    if (Buffer.byteLength(s, 'utf8') > 9 * 1024) throw new Error(`Argument too large: ${k}`);
+    props[k] = s;
+  };
 
   const sandbox: Record<string, any> = {
     PropertiesService: {
       getScriptProperties: () => ({
         getProperty: (k: string) => (k in props ? props[k] : null),
-        setProperty: (k: string, v: string) => { props[k] = String(v); },
+        setProperty: putProp,
         deleteProperty: (k: string) => { delete props[k]; },
         getProperties: () => ({ ...props }),
         setProperties: (o: Record<string, string>) => {
-          for (const k in o) props[k] = String(o[k]);
+          for (const k in o) putProp(k, o[k]);
         },
       }),
     },
@@ -90,4 +96,12 @@ export function loadCode(opts: LoadCodeOptions = {}): Record<string, any> {
   // `const CONFIG` is lexical, so expose it explicitly for tests.
   vm.runInContext(SOURCE + '\n;this.CONFIG = CONFIG;', sandbox, { filename: 'Code.gs' });
   return sandbox;
+}
+
+// Builds entries whose JSON is exactly `bytes` long (ASCII), padding the last one's `pad` string.
+export function fillTo<T>(make: (i: number, pad: string) => T, bytes: number): T[] {
+  const arr: T[] = [];
+  while (JSON.stringify([...arr, make(arr.length, '')]).length <= bytes) arr.push(make(arr.length, ''));
+  arr[arr.length - 1] = make(arr.length - 1, 'x'.repeat(bytes - JSON.stringify(arr).length));
+  return arr;
 }

@@ -947,18 +947,23 @@ function logSyncRun_(run) {
       try {
         const props = PropertiesService.getScriptProperties();
         run.docSize = parseInt(props.getProperty('estimatedChars') || '0', 10);
+        // Full counts stay in synced/updated; only the name lists are capped.
+        const capNames = (names) => (names || []).slice(0, 20).map((n) => String(n).slice(0, 80));
+        run.syncedNames = capNames(run.syncedNames);
+        run.updatedNames = capNames(run.updatedNames);
         var parsed = JSON.parse(props.getProperty('syncHistory') || '[]');
         var history = Array.isArray(parsed) ? parsed : [];
         history.unshift(run);
         if (history.length > CONFIG.HISTORY_SIZE) history.length = CONFIG.HISTORY_SIZE;
-        props.setProperty('syncHistory', JSON.stringify(history));
+        props.setProperty('syncHistory', fitPropertyValue_(history, false));
       } catch (e) {
         console.error(`logSyncRun_ failed: ${e.message}`);
       }
     });
   } catch (e) {
-    if (e.code !== 'BUSY') throw e;
-    console.warn('[logSyncRun_] could not acquire lock; dropping this entry to avoid race');
+    // Logging must never change a run's outcome.
+    if (e.code === 'BUSY') console.warn('[logSyncRun_] could not acquire lock; dropping this entry to avoid race');
+    else Logger.log('[logSyncRun_] failed: ' + (e && e.message));
   }
 }
 
@@ -1144,12 +1149,24 @@ function appendRunLog_(entry) {
       } catch (_) {}
       existing.push(entry);
       if (existing.length > 50) existing = existing.slice(existing.length - 50);
-      props.setProperty('RUN_LOG', JSON.stringify(existing));
+      props.setProperty('RUN_LOG', fitPropertyValue_(existing, true));
     });
   } catch (e) {
-    if (e.code !== 'BUSY') throw e;
-    console.warn('[appendRunLog_] could not acquire lock; dropping this entry to avoid race');
+    // Logging must never change a run's outcome.
+    if (e.code === 'BUSY') console.warn('[appendRunLog_] could not acquire lock; dropping this entry to avoid race');
+    else Logger.log('[appendRunLog_] failed: ' + (e && e.message));
   }
+}
+
+// PropertiesService rejects values over 9 KB: drop the oldest entries until the JSON is <= 8500 UTF-8 bytes.
+function fitPropertyValue_(arr, oldestFirst) {
+  var json = JSON.stringify(arr);
+  // encodeURIComponent turns each non-ASCII byte into one %XX, so this counts UTF-8 bytes.
+  while (arr.length > 0 && encodeURIComponent(json).replace(/%[0-9A-F]{2}/g, '_').length > 8500) {
+    if (oldestFirst) arr.shift(); else arr.pop();
+    json = JSON.stringify(arr);
+  }
+  return json;
 }
 
 function logRun_(action, fn) {
@@ -1164,8 +1181,8 @@ function logRun_(action, fn) {
       finishedAt: new Date().toISOString(),
       action: action,
       ok: false,
-      error: String(e && e.message || e),
-      errorStack: String(e && e.stack || ''),
+      error: String(e && e.message || e).slice(0, 500),
+      errorStack: String(e && e.stack || '').slice(0, 500),
     });
     throw e;
   }

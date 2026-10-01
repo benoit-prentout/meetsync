@@ -1,6 +1,7 @@
+// Exercises the real apps-script/Code.gs getHistory() via the loadCode harness.
 import { describe, it, expect } from 'vitest';
+import { loadCode } from './loadCode';
 
-// Replicate the transform logic from getHistory() in Code.gs
 function transformHistoryRecord(
   r: {
     date: string;
@@ -13,29 +14,8 @@ function transformHistoryRecord(
   },
   _i: number
 ) {
-  const filesProcessed = (r.synced || 0) + (r.updated || 0);
-  const status =
-    r.errors && r.errors > 0
-      ? filesProcessed > 0
-        ? 'partial'
-        : 'error'
-      : 'success';
-  const message =
-    (r.synced || 0) +
-    ' synced, ' +
-    (r.updated || 0) +
-    ' updated' +
-    (r.errors ? ', ' + r.errors + ' errors' : '');
-  return {
-    id: r.date,
-    timestamp: r.date,
-    filesProcessed,
-    status,
-    message,
-    syncedNames: r.syncedNames || [],
-    updatedNames: r.updatedNames || [],
-    duration: r.duration ?? null,
-  };
+  const gs = loadCode({ props: { syncHistory: JSON.stringify([r]) } });
+  return gs.getHistory().history[0];
 }
 
 describe('getHistory transform', () => {
