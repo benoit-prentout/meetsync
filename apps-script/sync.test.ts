@@ -108,3 +108,20 @@ describe('appendMeetNotesToMaster (menu/trigger) delegates to the REST sync', ()
     expect(s.alerts[0]).toMatch(/^✅ 1 meeting\(s\) added\. ⚠️ 1 error\(s\)/);
   });
 });
+
+describe('update detection (G1)', () => {
+  it('re-syncs a note edited 3 minutes after the stored modifiedTime', () => {
+    const edited = T + 3 * 60 * 1000;
+    const s = setup({ files: [note('a1', { modifiedTime: new Date(edited).toISOString() })], props: { SYNC_a1: String(T) } });
+    const out = s.gs.runSync();
+    expect(out.result).toMatchObject({ synced: 1, updated: 1 });
+    expect(s.exported).toEqual(['a1']);
+    expect(s.props.SYNC_a1).toBe(String(edited));
+  });
+
+  it('skips a note whose modifiedTime equals the stored one', () => {
+    const s = setup({ files: [note('a1')], props: { SYNC_a1: String(T) } });
+    expect(s.gs.runSync().result.message).toBe('All files are already synced');
+    expect(s.exported).toEqual([]);
+  });
+});

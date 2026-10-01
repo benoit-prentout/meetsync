@@ -453,11 +453,8 @@ function appendMeetNotesToMasterRestAPI(docId) {
     if (!lastSyncTime) {
       toProcess.push(file);
     } else if (CONFIG.ENABLE_UPDATE_DETECTION) {
-      const modifiedDate = new Date(file.modifiedTime).getTime();
-      const syncDate = parseInt(lastSyncTime, 10);
-      const GRACE_MS = 5 * 60 * 1000;
-
-      if (modifiedDate > syncDate + GRACE_MS) {
+      // Both sides are the file's own modifiedTime (stored at sync), so compare strictly.
+      if (new Date(file.modifiedTime).getTime() > parseInt(lastSyncTime, 10)) {
         toProcess.push(file);
         updatedIds.push(file.id);
       }
