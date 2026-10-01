@@ -292,7 +292,7 @@ function validateSettings_(settings) {
   });
   if ('maxFilesPerRun' in settings && (!isInt(settings.maxFilesPerRun) || settings.maxFilesPerRun < 1 || settings.maxFilesPerRun > 100)) push('maxFilesPerRun', 'must be integer 1–100');
   if ('maxAgeDays' in settings && (!isInt(settings.maxAgeDays) || settings.maxAgeDays < 0)) push('maxAgeDays', 'must be integer ≥ 0');
-  if ('archiveThresholdChars' in settings && (!isInt(settings.archiveThresholdChars) || settings.archiveThresholdChars < 0 || settings.archiveThresholdChars > 1000000)) push('archiveThresholdChars', 'must be integer 0–1000000');
+  if ('archiveThresholdChars' in settings && (!isInt(settings.archiveThresholdChars) || settings.archiveThresholdChars < 0 || settings.archiveThresholdChars > 900000)) push('archiveThresholdChars', 'must be integer 0–900000');
   if ('maxRetries' in settings && (!isInt(settings.maxRetries) || settings.maxRetries < 1 || settings.maxRetries > 10)) push('maxRetries', 'must be integer 1–10');
   if ('historySize' in settings && (!isInt(settings.historySize) || settings.historySize < 1 || settings.historySize > 200)) push('historySize', 'must be integer 1–200');
   ['enableMonthlyArchive','enableUpdateDetection','enableNotifications','enableTimeWindow'].forEach(function(k){
@@ -419,12 +419,8 @@ function runArchive() {
       const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
       const timezone = Session.getScriptTimeZone() || 'UTC';
 
-      checkAndArchive_(docId, timezone, true);
-
-      return {
-        success: true,
-        message: 'Archive created'
-      };
+      const r = checkAndArchive_(docId, timezone, true);
+      return r.archived ? { success: true, message: 'Archive created' } : { success: false, error: r.message };
     });
   });
 }
@@ -505,14 +501,6 @@ function appendMeetNotesToMasterRestAPI(docId) {
     return { synced: 0, updated: 0, errors: 0, message: 'All files are already synced' };
   }
 
-  if (CONFIG.ARCHIVE_THRESHOLD_CHARS > 0) {
-    try {
-      checkAndArchive_(docId, timezone);
-    } catch (e) {
-      console.error('Archive failed during sync (continuing sync run):', e && e.message || e);
-    }
-  }
-
   const filesToProcess = toProcess.reverse();
   const requests = [];
   const syncedEntries = [];
@@ -552,6 +540,12 @@ function appendMeetNotesToMasterRestAPI(docId) {
   }
 
   if (requests.length > 0) {
+    try {
+      // Size check includes the batch about to be inserted; no-op when size and monthly archive are both off.
+      checkAndArchive_(docId, timezone, false, requests.reduce((n, r) => n + r.insertText.text.length, 0));
+    } catch (e) {
+      console.error('Archive failed during sync (continuing sync run):', e && e.message || e);
+    }
     apiCall_(() => Docs.Documents.batchUpdate({ requests }, docId));
     // Mark notes synced only once they are in the doc, so a failed write is retried next run.
     props.setProperties(syncMarkers);
@@ -748,35 +742,49 @@ function appendMeetNotesToMaster(e) {
  */
 function forceArchive() {
   const ui = DocumentApp.getUi();
-  if (ui.alert('Archive', 'Copy this document to an archive and clear the current content?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
-  const docId = DocumentApp.getActiveDocument().getId();
+  if (ui.alert('Archive', 'Copy the master document to an archive and clear its content?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
   const timezone = Session.getScriptTimeZone() || 'UTC';
+  let r;
   try {
-    withScriptLock_(30000, () => checkAndArchive_(docId, timezone, true));
+    r = withScriptLock_(30000, () => checkAndArchive_(docId, timezone, true));
   } catch (err) {
     if (err.code !== 'BUSY') throw err;
     showAlert_(`⏳ ${err.message}. Try again in a minute.`);
     return;
   }
-  showAlert_('✅ Archive created. The master document has been cleared.');
+  showAlert_(r.archived ? '✅ Archive created. The master document has been cleared.' : `ℹ️ ${r.message}.`);
 }
 
 /**
- * Checks document size and archives if threshold is reached.
+ * Real size of a doc: body end index minus the trailing newline (≈ characters, what Docs limits).
  */
-function checkAndArchive_(docId, timezone, force) {
+function getDocChars_(docId) {
+  const metaUrl = `https://docs.googleapis.com/v1/documents/${encodeURIComponent(docId)}?fields=body.content.endIndex`;
+  const metaResp = UrlFetchApp.fetch(metaUrl, {
+    headers: { Authorization: `Bearer ${ScriptApp.getOAuthToken()}` },
+  });
+  const content = JSON.parse(metaResp.getContentText()).body.content;
+  return content[content.length - 1].endIndex - 1;
+}
+
+/**
+ * Archives the doc at the start of a month, when it (plus `pendingChars` about to be
+ * inserted) reaches the size threshold, or always when `force`. Returns { archived, message? }.
+ */
+function checkAndArchive_(docId, timezone, force, pendingChars) {
   const props = PropertiesService.getScriptProperties();
-  const estimatedChars = parseInt(props.getProperty('estimatedChars') || '0', 10);
-  
+  const threshold = CONFIG.ARCHIVE_THRESHOLD_CHARS;
+
   // 1. Check for Monthly Archive
   let shouldArchive = false;
   let archiveReason = "";
-  
+
   if (CONFIG.ENABLE_MONTHLY_ARCHIVE) {
     const now = new Date();
     const currentMonth = Utilities.formatDate(now, timezone, "yyyy-MM");
     const lastMonth = props.getProperty('lastArchiveMonth');
-    
+
     if (lastMonth && lastMonth !== currentMonth) {
       shouldArchive = true;
       archiveReason = `Start of new month (${currentMonth})`;
@@ -784,13 +792,19 @@ function checkAndArchive_(docId, timezone, force) {
     props.setProperty('lastArchiveMonth', currentMonth);
   }
 
-  // 2. Check for Size Archive
-  if (!shouldArchive && CONFIG.ARCHIVE_THRESHOLD_CHARS > 0 && (force || estimatedChars >= CONFIG.ARCHIVE_THRESHOLD_CHARS)) {
+  if (!shouldArchive && !force && !(threshold > 0)) return { archived: false };
+
+  // 2. Check for Size Archive, on the real doc (the stored estimate drifts and is reset by "Reset Sync State").
+  const docChars = getDocChars_(docId);
+  props.setProperty('estimatedChars', String(docChars));
+  if (!shouldArchive && (force || docChars + (pendingChars || 0) >= threshold)) {
     shouldArchive = true;
-    archiveReason = `Size limit reached (~${estimatedChars} chars)`;
+    archiveReason = `${force ? 'Manual archive' : 'Size limit reached'} (~${docChars} chars)`;
   }
 
-  if (!shouldArchive) return;
+  if (!shouldArchive) return { archived: false };
+  // ponytail: fixed cutoff; the post-archive marker line is ~130 chars, a synced meeting block is longer.
+  if (docChars < 200) return { archived: false, message: 'Nothing to archive: the master document is empty' };
 
   console.log(`📦 Archiving triggered. Reason: ${archiveReason}. Archiving...`);
 
@@ -815,14 +829,7 @@ function checkAndArchive_(docId, timezone, force) {
     // Mark the archive as synced locally
     props.setProperty('SYNC_' + copy.id, String(Date.now()));
 
-    const metaUrl = `https://docs.googleapis.com/v1/documents/${encodeURIComponent(docId)}?fields=body.content.endIndex`;
-    const metaResp = UrlFetchApp.fetch(metaUrl, {
-      headers: { Authorization: `Bearer ${ScriptApp.getOAuthToken()}` },
-    });
-    const metaData = JSON.parse(metaResp.getContentText());
-    const content = metaData.body.content;
-    const endIndex = content[content.length - 1].endIndex - 1;
-
+    const endIndex = docChars;
     const clearRequests = [];
     if (endIndex > 1) {
       clearRequests.push({ deleteContentRange: { range: { startIndex: 1, endIndex } } });
@@ -836,7 +843,7 @@ function checkAndArchive_(docId, timezone, force) {
     var archiveHistory = JSON.parse(props.getProperty('archiveHistory') || '[]');
     archiveHistory.unshift({
       date: new Date().toISOString(),
-      sizeBefore: estimatedChars,
+      sizeBefore: docChars,
       reason: archiveReason
     });
     if (archiveHistory.length > 10) archiveHistory.length = 10;
@@ -859,7 +866,7 @@ function checkAndArchive_(docId, timezone, force) {
     } catch (e) {
       console.error(`Archive notification failed: ${e.message}`);
     }
-
+    return { archived: true };
   } catch (e) {
     console.error(`Archiving failed: ${e.message}`);
     throw e;

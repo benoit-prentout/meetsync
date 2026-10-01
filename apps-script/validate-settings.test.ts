@@ -46,6 +46,12 @@ describe('validateSettings', () => {
   it('accepts HH:MM at boundaries', () => {
     expect(validateSettings({ syncWindowStart: '00:00', syncWindowEnd: '23:59' })).toEqual({ ok: true });
   });
+  it('caps archiveThresholdChars at 900000 (Docs hard limit headroom)', () => {
+    expect(validateSettings({ archiveThresholdChars: 0 })).toEqual({ ok: true });
+    expect(validateSettings({ archiveThresholdChars: 900000 })).toEqual({ ok: true });
+    const r = validateSettings({ archiveThresholdChars: 900001 }) as Exclude<Result, { ok: true }>;
+    expect(r.errors).toEqual([{ field: 'archiveThresholdChars', reason: 'must be integer 0–900000' }]);
+  });
   it('collects multiple errors', () => {
     const r = validateSettings({ maxFilesPerRun: 0, maxAgeDays: -1 }) as Exclude<Result, { ok: true }>;
     expect(r.errors.length).toBe(2);
