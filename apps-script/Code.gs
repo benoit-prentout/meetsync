@@ -107,19 +107,21 @@ function validateCaller_(accessToken) {
 
     // Web app runs "Execute as: Me" with access "Anyone": getActiveUser() is the
     // CALLER, so only the effective user (the deployer) identifies the owner.
-    // If that is empty (some personal accounts), use a manually set OWNER_EMAIL
-    // script property. Never written here: auto-seeding would let the first
-    // caller take ownership.
-    var owner = '';
-    try { owner = Session.getEffectiveUser().getEmail() || ''; } catch (_) {}
-    if (!owner) owner = PropertiesService.getScriptProperties().getProperty('OWNER_EMAIL') || '';
-    if (!owner) {
-      Logger.log('validateCaller_: owner email unavailable. Set the OWNER_EMAIL script property to your Google account email (Project Settings → Script Properties).');
+    // Extra callers (e.g. a Chrome account other than the deployer, or when the
+    // effective email is empty on some personal accounts) come from the manually
+    // set ALLOWED_CALLER_EMAIL script property (comma-separated). Never written
+    // here, and the old auto-seeded OWNER_EMAIL is not trusted: seeding let the
+    // first caller take ownership.
+    var norm = function (s) { return String(s).trim().toLowerCase(); };
+    var allowed = String(PropertiesService.getScriptProperties().getProperty('ALLOWED_CALLER_EMAIL') || '').split(',');
+    try { allowed.push(Session.getEffectiveUser().getEmail() || ''); } catch (_) {}
+    allowed = allowed.map(norm).filter(Boolean);
+    if (allowed.length === 0) {
+      Logger.log('validateCaller_: owner email unavailable. Set the ALLOWED_CALLER_EMAIL script property to your Google account email (Project Settings → Script Properties).');
       return false;
     }
 
-    var norm = function (s) { return String(s).trim().toLowerCase(); };
-    if (norm(info.email) === norm(owner)) {
+    if (allowed.indexOf(norm(info.email)) !== -1) {
       cache.put(cacheKey, 'ok', 300);
       return true;
     }
@@ -209,7 +211,7 @@ function getDiagnostics() {
     diagnostics: {
       scriptIntegrity: SCRIPT_INTEGRITY,
       configOverrides: overrides,
-      ownerEmail: props.getProperty('OWNER_EMAIL') || null,
+      allowedCallerEmail: props.getProperty('ALLOWED_CALLER_EMAIL') || null,
       sessionUserEmpty: !sessionEmail,
       scriptTimezone: Session.getScriptTimeZone(),
       lastError: lastError,

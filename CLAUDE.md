@@ -42,7 +42,7 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 
 - `handleRequest(e)` is the single entry point for GET/POST.
 - Auth: token passed as `?token=<accessToken>` query param — **Apps Script strips `Authorization` headers**, so `fetchApi` in `api.ts` appends the token to the URL.
-- `validateCaller_(accessToken)` calls Google tokeninfo endpoint and authorises only the deployer: tokeninfo email (verified, case-insensitive) must equal `Session.getEffectiveUser().getEmail()`. Under "Execute as: Me" + "Anyone", `getActiveUser()` is the *caller*, so it is never used for auth. Successes are cached 5 min via `CacheService`, keyed on a SHA-256 of the full token.
+- `validateCaller_(accessToken)` calls Google tokeninfo endpoint and authorises the deployer plus an optional allow-list: tokeninfo email (verified, trimmed, case-insensitive) must equal `Session.getEffectiveUser().getEmail()` or one of the comma-separated emails in the manually set `ALLOWED_CALLER_EMAIL` script property. Under "Execute as: Me" + "Anyone", `getActiveUser()` is the *caller*, so it is never used for auth. Successes are cached 5 min via `CacheService`, keyed on a SHA-256 of the full token.
 - `CONFIG_OVERRIDES` loaded from `PropertiesService` on startup via IIFE; `updateSettings` persists changes there.
 - `SETTINGS_KEY_MAP_` maps camelCase frontend keys ↔ SCREAMING_SNAKE_CASE `CONFIG` keys.
 - POST detection uses `e.postData` (not `e.method === 'POST'` — that field doesn't exist in Apps Script).
@@ -120,7 +120,7 @@ npm test   # runs vitest (jsdom, globals: true)
 
 - `dist/` is gitignored — build artifacts are not committed.
 - `Drive.Files.get` returns `size: "0"` for Google Docs (not binary files) — `getFiles()` treats this as `0`.
-- `Session.getEffectiveUser().getEmail()` can return empty for some personal accounts. `validateCaller_` then falls back to an `OWNER_EMAIL` script property, which is **never written automatically** (auto-seeding let the first caller take ownership). If neither is available every request is rejected as Unauthorized and the execution log says to set it: add `OWNER_EMAIL` = your Google account email in the Apps Script editor → Project Settings → Script Properties. When the effective-user email is available it takes precedence over `OWNER_EMAIL`.
+- **Chrome's signed-in account must be the deploying account**, unless you add it to the `ALLOWED_CALLER_EMAIL` script property (comma-separated list) by hand in the Apps Script editor → Project Settings → Script Properties. The same property is the fallback when `Session.getEffectiveUser().getEmail()` returns empty (some personal accounts); with neither, every request is rejected as Unauthorized and the execution log says to set it. The backend never writes it. The old auto-seeded `OWNER_EMAIL` property is **no longer read** (seeding let the first caller take ownership): existing installs that relied on it must set `ALLOWED_CALLER_EMAIL` if their Chrome account differs from the deployer (and may delete `OWNER_EMAIL`).
 - Email notifications via `MailApp` silently fail when quota is exceeded or on personal accounts.
 - Archive email failure is caught and logged but does not abort the archive.
 - **shadcn/ui CSS variables ARE defined** in `src/index.css` (`--primary`, `--input`, `--background`, `--ring`, etc.). They can be used directly.

@@ -42,29 +42,40 @@ describe('validateCaller_', () => {
   it('does not let the first caller take over when no owner is known', () => {
     const { gs, props, log } = setup({ info: { email: 'attacker@gmail.com', email_verified: 'true' }, active: 'attacker@gmail.com' });
     expect(gs.validateCaller_('tok-attacker')).toBe(false);
+    expect(props.ALLOWED_CALLER_EMAIL).toBeUndefined();
     expect(props.OWNER_EMAIL).toBeUndefined();
-    expect(log).toHaveBeenCalledWith(expect.stringContaining('OWNER_EMAIL'));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('ALLOWED_CALLER_EMAIL'));
   });
 
-  it('never writes OWNER_EMAIL, even on success', () => {
+  it('never writes script properties, even on success', () => {
     const { gs, props } = setup({ effective: OWNER });
     expect(gs.validateCaller_('tok-owner')).toBe(true);
-    expect(props.OWNER_EMAIL).toBeUndefined();
+    expect(props).toEqual({});
   });
 
-  it('falls back to a stored OWNER_EMAIL when the effective email is empty', () => {
-    const { gs } = setup({ props: { OWNER_EMAIL: OWNER } });
-    expect(gs.validateCaller_('tok-owner')).toBe(true);
+  it('accepts ALLOWED_CALLER_EMAIL in addition to the effective user', () => {
+    const props = { ALLOWED_CALLER_EMAIL: 'chrome@gmail.com' };
+    expect(setup({ info: { email: 'chrome@gmail.com' }, effective: OWNER, props }).gs.validateCaller_('tok-b')).toBe(true);
+    expect(setup({ effective: OWNER, props }).gs.validateCaller_('tok-a')).toBe(true);
+    expect(setup({ info: { email: COLLEAGUE }, effective: OWNER, props }).gs.validateCaller_('tok-c')).toBe(false);
   });
 
-  it('rejects a non-owner against a stored OWNER_EMAIL fallback', () => {
-    const { gs } = setup({ info: { email: COLLEAGUE }, props: { OWNER_EMAIL: OWNER } });
-    expect(gs.validateCaller_('tok-colleague')).toBe(false);
+  it('falls back to ALLOWED_CALLER_EMAIL when the effective email is empty', () => {
+    const props = { ALLOWED_CALLER_EMAIL: OWNER };
+    expect(setup({ props }).gs.validateCaller_('tok-owner')).toBe(true);
+    expect(setup({ info: { email: COLLEAGUE }, props }).gs.validateCaller_('tok-colleague')).toBe(false);
   });
 
-  it('prefers the effective user over a stale stored OWNER_EMAIL', () => {
-    const { gs } = setup({ info: { email: 'old@corp.com' }, effective: OWNER, props: { OWNER_EMAIL: 'old@corp.com' } });
-    expect(gs.validateCaller_('tok-old')).toBe(false);
+  it('no longer trusts a legacy OWNER_EMAIL property', () => {
+    expect(setup({ props: { OWNER_EMAIL: OWNER } }).gs.validateCaller_('tok-owner')).toBe(false);
+    expect(setup({ info: { email: 'old@corp.com' }, effective: OWNER, props: { OWNER_EMAIL: 'old@corp.com' } }).gs.validateCaller_('tok-old')).toBe(false);
+  });
+
+  it('accepts a comma-separated ALLOWED_CALLER_EMAIL list, trimmed and case-insensitive', () => {
+    const props = { ALLOWED_CALLER_EMAIL: ' First@Gmail.com , SECOND@corp.com,,' };
+    expect(setup({ info: { email: 'second@CORP.com' }, props }).gs.validateCaller_('t1')).toBe(true);
+    expect(setup({ info: { email: 'first@gmail.com' }, effective: OWNER, props }).gs.validateCaller_('t2')).toBe(true);
+    expect(setup({ info: { email: 'third@corp.com' }, props }).gs.validateCaller_('t3')).toBe(false);
   });
 
   it('compares emails case-insensitively and trimmed', () => {
