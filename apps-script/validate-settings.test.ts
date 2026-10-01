@@ -52,6 +52,13 @@ describe('validateSettings', () => {
     const r = validateSettings({ archiveThresholdChars: 900001 }) as Exclude<Result, { ok: true }>;
     expect(r.errors).toEqual([{ field: 'archiveThresholdChars', reason: 'must be integer 0–900000' }]);
   });
+  it('clamps a legacy threshold above 900000 in getSettings so a full re-save validates', () => {
+    const props: Record<string, string> = { CONFIG_OVERRIDES: JSON.stringify({ ARCHIVE_THRESHOLD_CHARS: 950000 }) };
+    const g = loadCode({ props });
+    const { settings } = g.getSettings();
+    expect(settings.archiveThresholdChars).toBe(900000);
+    expect(g.updateSettings(settings)).toEqual({ success: true, message: 'Settings updated' });
+  });
   it('collects multiple errors', () => {
     const r = validateSettings({ maxFilesPerRun: 0, maxAgeDays: -1 }) as Exclude<Result, { ok: true }>;
     expect(r.errors.length).toBe(2);

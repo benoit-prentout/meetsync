@@ -243,7 +243,8 @@ function getSettings() {
     settings: {
       sourceFolderName: CONFIG.SOURCE_FOLDER_NAME,
       maxFilesPerRun: CONFIG.MAX_FILES_PER_RUN,
-      archiveThresholdChars: CONFIG.ARCHIVE_THRESHOLD_CHARS,
+      // Legacy saves above the current 900000 cap would fail validation on every re-save.
+      archiveThresholdChars: Math.min(CONFIG.ARCHIVE_THRESHOLD_CHARS, 900000),
       enableMonthlyArchive: CONFIG.ENABLE_MONTHLY_ARCHIVE,
       enableUpdateDetection: CONFIG.ENABLE_UPDATE_DETECTION,
       enableNotifications: CONFIG.ENABLE_NOTIFICATIONS,
