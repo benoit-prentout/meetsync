@@ -168,3 +168,68 @@ describe('master and archive docs are never imported (D1)', () => {
     expect(s.syncMarkers()).toEqual(['SYNC_a1']);
   });
 });
+
+describe('Meet notes discovery (PL1 / M1)', () => {
+  const many = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => note(`${prefix}${i}`));
+
+  it('searches Drive-wide by name + doc mimeType, with no parent-folder restriction by default', () => {
+    const s = setup({ files: [note('a1')] });
+    s.gs.runSync();
+    const q = s.sourceQuery();
+    expect(q).not.toContain('in parents');
+    expect(q).toContain("mimeType = 'application/vnd.google-apps.document'");
+    expect(q).toContain('trashed = false');
+    for (const n of ['Notes de la réunion', 'Meeting notes', 'Notes for', 'Notes by Gemini', 'Notes par Gemini']) {
+      expect(q).toContain(`name contains '${n}'`);
+    }
+    expect(s.list.mock.calls.some((c) => c[0].q.includes('google-apps.folder'))).toBe(false);
+    expect(s.list.mock.calls[0][0]).toMatchObject({ supportsAllDrives: true, includeItemsFromAllDrives: true });
+  });
+
+  it('keeps the MAX_AGE_DAYS cutoff', () => {
+    const s = setup({ files: [], config: { MAX_AGE_DAYS: 7 } });
+    s.gs.runSync();
+    expect(s.sourceQuery()).toMatch(/modifiedTime > '\d{4}-/);
+  });
+
+  it('pages past the first 100 results', () => {
+    const s = setup({ pages: [many('p', 100), many('q', 100)], config: { MAX_FILES_PER_RUN: 150 } });
+    expect(s.gs.runSync().result.synced).toBe(150);
+    expect(s.list).toHaveBeenCalledTimes(2);
+    expect(s.exported.filter((id) => id.startsWith('q'))).toHaveLength(50); // second page fetched via nextPageToken
+  });
+
+  it('finds new notes behind a full page of already-synced ones', () => {
+    const synced = many('old', 100);
+    const props = Object.fromEntries(synced.map((f) => ['SYNC_' + f.id, String(T)]));
+    const s = setup({ pages: [synced, [note('new1')]], props });
+    expect(s.gs.runSync().result.synced).toBe(1);
+    expect(s.exported).toEqual(['new1']);
+  });
+
+  it('stops paging once MAX_FILES_PER_RUN is reached', () => {
+    const s = setup({ pages: [many('p', 30), many('q', 30)], config: { MAX_FILES_PER_RUN: 20 } });
+    expect(s.gs.runSync().result.synced).toBe(20);
+    expect(s.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not double-count a shortcut to a note', () => {
+    const s = setup({
+      files: [note('a1'), note('sc1', { mimeType: 'application/vnd.google-apps.shortcut' })],
+    });
+    expect(s.gs.runSync().result.synced).toBe(1);
+    expect(s.exported).toEqual(['a1']);
+  });
+
+  it('a configured folder that does not resolve does not hide name-matched notes', () => {
+    const s = setup({ files: [note('a1')], config: { SOURCE_FOLDER_NAME: 'Gone' } });
+    expect(s.gs.runSync().result.synced).toBe(1);
+    expect(s.sourceQuery()).not.toContain('in parents');
+  });
+
+  it('a configured folder that resolves only widens the search', () => {
+    const s = setup({ files: [note('a1')], folders: [{ id: 'F1' }], config: { SOURCE_FOLDER_NAME: 'My notes' } });
+    s.gs.runSync();
+    expect(s.sourceQuery()).toContain("('F1' in parents or (name contains");
+  });
+});

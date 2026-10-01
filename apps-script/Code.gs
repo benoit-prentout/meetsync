@@ -4,7 +4,9 @@
  */
 
 const CONFIG = {
-  SOURCE_FOLDER_NAME: 'Meet Recordings',
+  // Optional folder whose docs are synced in addition to the name-matched notes.
+  // Empty by default: Meet now files notes in per-meeting sub-folders, so discovery is Drive-wide by name.
+  SOURCE_FOLDER_NAME: '',
   MAX_FILES_PER_RUN: 20,
   ENABLE_NOTIFICATIONS: true,
 
@@ -408,11 +410,12 @@ function appendMeetNotesToMasterRestAPI(docId) {
   const timezone = Session.getScriptTimeZone() || 'UTC';
   const props = PropertiesService.getScriptProperties();
 
-  const folderId = getFolderIdByName_(CONFIG.SOURCE_FOLDER_NAME);
+  const DOC_MIME = 'application/vnd.google-apps.document';
+  const folderId = CONFIG.SOURCE_FOLDER_NAME ? getFolderIdByName_(CONFIG.SOURCE_FOLDER_NAME) : null;
 
   // Never import the master doc or its archive copies (named by checkAndArchive_).
   const ARCHIVE_PREFIX = 'Meeting Notes Archive';
-  let query = `mimeType = 'application/vnd.google-apps.document' and trashed = false and not name contains '${ARCHIVE_PREFIX}'`;
+  let query = `mimeType = '${DOC_MIME}' and trashed = false and not name contains '${ARCHIVE_PREFIX}'`;
   let folderQuery = folderId ? `'${folderId}' in parents` : '';
   let nameQuery = `(name contains 'Notes de la réunion' or name contains 'Meeting notes' or name contains 'Notes for' or name contains 'Notes by Gemini' or name contains 'Notes par Gemini')`;
 
@@ -427,43 +430,50 @@ function appendMeetNotesToMasterRestAPI(docId) {
     query += ` and modifiedTime > '${cutoff}'`;
   }
 
-  const result = apiCall_(() => Drive.Files.list({
+  const listParams = {
     q: query,
     pageSize: 100,
-    fields: 'files(id, name, createdTime, modifiedTime)',
+    fields: 'nextPageToken, files(id, name, mimeType, createdTime, modifiedTime)',
     orderBy: 'createdTime desc',
     supportsAllDrives: true,
     includeItemsFromAllDrives: true
-  }));
-
-  if (!result.files || result.files.length === 0) {
-    return { synced: 0, updated: 0, errors: 0, message: 'No meetings found' };
-  }
-
+  };
   const toProcess = [];
   const updatedIds = [];
+  let found = 0;
 
-  for (const file of result.files) {
-    if (file.id === docId || file.name.indexOf(ARCHIVE_PREFIX) === 0) continue;
-    if (CONFIG.SOURCE_FILE_NAME_PATTERN && !matchesPattern_(file.name, CONFIG.SOURCE_FILE_NAME_PATTERN)) {
-      continue;
-    }
-    if (CONFIG.EXCLUSION_PATTERNS && isExcluded_(file.name, CONFIG.EXCLUSION_PATTERNS)) {
-      continue;
-    }
-    const lastSyncTime = props.getProperty('SYNC_' + file.id);
-
-    if (!lastSyncTime) {
-      toProcess.push(file);
-    } else if (CONFIG.ENABLE_UPDATE_DETECTION) {
-      // Both sides are the file's own modifiedTime (stored at sync), so compare strictly.
-      if (new Date(file.modifiedTime).getTime() > parseInt(lastSyncTime, 10)) {
-        toProcess.push(file);
-        updatedIds.push(file.id);
+  // ponytail: pages through all already-synced notes each run; add a modifiedTime cursor if Drive quota bites.
+  do {
+    const page = apiCall_(() => Drive.Files.list(listParams));
+    for (const file of page.files || []) {
+      // Shortcuts (attendee copies) are skipped: the real doc is listed itself.
+      if (file.mimeType !== DOC_MIME || file.id === docId || file.name.indexOf(ARCHIVE_PREFIX) === 0) continue;
+      found++;
+      if (CONFIG.SOURCE_FILE_NAME_PATTERN && !matchesPattern_(file.name, CONFIG.SOURCE_FILE_NAME_PATTERN)) {
+        continue;
       }
-    }
+      if (CONFIG.EXCLUSION_PATTERNS && isExcluded_(file.name, CONFIG.EXCLUSION_PATTERNS)) {
+        continue;
+      }
+      const lastSyncTime = props.getProperty('SYNC_' + file.id);
 
-    if (toProcess.length >= CONFIG.MAX_FILES_PER_RUN) break;
+      if (!lastSyncTime) {
+        toProcess.push(file);
+      } else if (CONFIG.ENABLE_UPDATE_DETECTION) {
+        // Both sides are the file's own modifiedTime (stored at sync), so compare strictly.
+        if (new Date(file.modifiedTime).getTime() > parseInt(lastSyncTime, 10)) {
+          toProcess.push(file);
+          updatedIds.push(file.id);
+        }
+      }
+
+      if (toProcess.length >= CONFIG.MAX_FILES_PER_RUN) break;
+    }
+    listParams.pageToken = page.nextPageToken;
+  } while (listParams.pageToken && toProcess.length < CONFIG.MAX_FILES_PER_RUN);
+
+  if (found === 0) {
+    return { synced: 0, updated: 0, errors: 0, message: 'No meetings found' };
   }
 
   if (toProcess.length === 0) {
