@@ -74,3 +74,20 @@ Status column: `open` for everything until fixed.
 
 ## Note on scope
 Fixing `Code.gs` requires re-pasting the file into the Apps Script editor and redeploying manually (CLAUDE.md). Findings marked SPECULATIVE are not fixed without verification.
+
+## Resolution (branch `chore/modernization`)
+
+**Fixed (each with tests; backend tests run against the real `Code.gs` via `apps-script/loadCode.ts`):**
+A1, A2, A4, P2, ext-F1, ext-F2 (narrow token for backend calls), B1, B2 (+ client timeout 330 s), C1, C2, D1, E1, G1, H1, F1b, I1, J1, PL1 (+ M1 paging).
+
+**Deliberately not fixed:**
+- A3 backend `azp` check — setup docs tell users to create their own OAuth client, so a hardcoded client ID would lock them out. The extension no longer sends the full-privilege token to the backend, which removes the main exposure.
+- O1, ext-F12 — SPECULATIVE, need verification in a real doc / Chrome.
+
+**Backlog (not started):** PL2–PL7, ext-F3/N1 (stale `SCRIPT_INTEGRITY`), ext-F4–F9, F11, F13, F14, F16, K1, L1, L2, M2, P1, dead code.
+
+**Known side effects of the fixes:**
+- History keeps at most 20 names (80 chars each) per run, so name-based counts in Analytics/FileExplorer undercount runs with more than 20 notes.
+- `Dashboard.tsx` has no try/catch around archive, so the new honest "Nothing to archive" error also logs an unhandled rejection.
+- Sign-in now requests only `openid email`; the first "Deploy Update" shows a second consent screen for the `script.*` scopes.
+- New personal-account installs where `Session.getEffectiveUser()` is empty need `OWNER_EMAIL` set by hand in Script Properties.
