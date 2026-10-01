@@ -125,3 +125,25 @@ describe('update detection (G1)', () => {
     expect(s.exported).toEqual([]);
   });
 });
+
+describe('sync markers (B1)', () => {
+  it('writes no SYNC_ markers and surfaces the error when batchUpdate fails', () => {
+    const s = setup({ files: [note('a1'), note('a2')], batchUpdate: () => { throw new Error('Docs API down'); } });
+    expect(() => s.gs.runSync()).toThrow('Docs API down');
+    expect(s.syncMarkers()).toEqual([]);
+    s.gs.validateCaller_ = () => true;
+    const res = JSON.parse(s.gs.handleRequest({ parameter: { action: 'sync', token: 't' } }).text);
+    expect(res).toEqual({ success: false, error: 'Docs API down' });
+    expect(s.syncMarkers()).toEqual([]);
+  });
+
+  it('writes markers only after batchUpdate succeeds', () => {
+    let markersAtWrite: string[] | null = null;
+    const s = setup({ files: [note('a1'), note('a2')] });
+    s.batchUpdate.mockImplementation(() => { markersAtWrite = s.syncMarkers(); return {}; });
+    s.gs.runSync();
+    expect(markersAtWrite).toEqual([]);
+    expect(s.syncMarkers()).toEqual(['SYNC_a1', 'SYNC_a2']);
+    expect(s.props.SYNC_a1).toBe(String(T));
+  });
+});

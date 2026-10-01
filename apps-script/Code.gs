@@ -479,6 +479,7 @@ function appendMeetNotesToMasterRestAPI(docId) {
   const requests = [];
   const syncedEntries = [];
   const updatedNames = [];
+  const syncMarkers = {};
   let errorCount = 0;
 
   for (var i = 0; i < filesToProcess.length; i++) {
@@ -504,7 +505,7 @@ function appendMeetNotesToMasterRestAPI(docId) {
         },
       });
 
-      props.setProperty('SYNC_' + file.id, String(new Date(file.modifiedTime).getTime()));
+      syncMarkers['SYNC_' + file.id] = String(new Date(file.modifiedTime).getTime());
       syncedEntries.push({ name: file.name, date: dateStr });
 
     } catch (e) {
@@ -514,6 +515,8 @@ function appendMeetNotesToMasterRestAPI(docId) {
 
   if (requests.length > 0) {
     apiCall_(() => Docs.Documents.batchUpdate({ requests }, docId));
+    // Mark notes synced only once they are in the doc, so a failed write is retried next run.
+    props.setProperties(syncMarkers);
     updateDocSizeEstimate_(requests);
 
     try {
