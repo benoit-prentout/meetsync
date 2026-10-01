@@ -58,7 +58,7 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 - **State layer**: `useSettingsStore` (Zustand + `persist`) holds runtime UI state. `useApi` hook wraps `api.ts` calls and writes results into the store. `useAuth` manages the `chrome.identity` token lifecycle.
 - **First run**: `App.tsx` reads `chrome.storage.sync` on mount; renders `<SetupWizard />` if URL not set.
 - **SetupWizard ordering**: `setDeploymentUrl(url)` must be called AFTER `await signIn()` resolves — calling it before causes `App.tsx` to unmount the wizard mid-flow.
-- **OAuth client ID**: set in `public/manifest.json` under `oauth2.client_id`. Format: `<id>.apps.googleusercontent.com`.
+- **OAuth client ID**: set in `public/manifest.json` under `oauth2.client_id`. Format: `<id>.apps.googleusercontent.com`. The manifest `key` pins the extension ID to `mbbmbndohpgkigldmbpbilfcimbpkkje` (the OAuth client's Item ID); `src/manifest.test.ts` guards it, so don't change or remove `key`.
 
 ### Distribution
 

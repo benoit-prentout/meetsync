@@ -42,7 +42,7 @@ The easiest way to use this tool is to copy the pre-configured template:
 
 ### First-time setup (one per user)
 
-1. **Create OAuth credentials** — follow [Google Cloud Setup](docs/google-cloud-setup.md)
+1. **Create OAuth credentials** — follow [Google Cloud Setup](docs/google-cloud-setup.md). Use Item ID `mbbmbndohpgkigldmbpbilfcimbpkkje` (fixed by the manifest `key`, the same wherever you unzip the extension).
 2. **Deploy the Apps Script backend** — copy `apps-script/Code.gs` into an Apps Script project bound to your master Google Doc, enable Drive + Docs APIs, and deploy as a web app. Or use the **Deploy Backend** button in extension Settings for auto-deploy.
 3. **Enter your deployment URL** and **script project ID** in the extension's setup wizard.
 
