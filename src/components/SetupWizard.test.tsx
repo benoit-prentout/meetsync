@@ -53,7 +53,21 @@ describe('SetupWizard', () => {
       (_data: Record<string, unknown>, cb: () => void) => cb()
     );
     (chrome.storage.sync.remove as ReturnType<typeof vi.fn>).mockImplementation(() => {});
+
+    // In-memory chrome.storage.local so drafts round-trip across remounts
+    localStore = {};
+    (chrome.storage.local.get as ReturnType<typeof vi.fn>).mockImplementation(async (key: string) =>
+      key in localStore ? { [key]: localStore[key] } : {}
+    );
+    (chrome.storage.local.set as ReturnType<typeof vi.fn>).mockImplementation(async (items: Record<string, unknown>) => {
+      Object.assign(localStore, items);
+    });
+    (chrome.storage.local.remove as ReturnType<typeof vi.fn>).mockImplementation(async (key: string) => {
+      delete localStore[key];
+    });
   });
+
+  let localStore: Record<string, unknown> = {};
 
   function fillForm() {
     const urlInput = screen.getByLabelText(/apps script deployment url/i);
@@ -136,6 +150,55 @@ describe('SetupWizard', () => {
     await waitFor(() => {
       expect(screen.getByText(/OAuth cancelled/i)).toBeInTheDocument();
       expect(chrome.storage.sync.remove).toHaveBeenCalledWith(['deploymentUrl', 'scriptId']);
+    });
+    // Draft survives a failed attempt so the user can retry without retyping
+    expect(localStore.setupWizardDraft).toEqual({ url: VALID_URL, scriptId: VALID_SID });
+  });
+
+  describe('draft persistence (popup closes on blur)', () => {
+    it('writes both fields to chrome.storage.local as the user types', async () => {
+      render(<SetupWizard />);
+      const { urlInput, sidInput } = fillForm();
+      await userEvent.type(urlInput, VALID_URL);
+      await userEvent.type(sidInput, VALID_SID);
+      await waitFor(() => {
+        expect(localStore.setupWizardDraft).toEqual({ url: VALID_URL, scriptId: VALID_SID });
+      });
+    });
+
+    it('restores both fields after the wizard remounts', async () => {
+      const { unmount } = render(<SetupWizard />);
+      const { urlInput, sidInput } = fillForm();
+      await userEvent.type(urlInput, VALID_URL);
+      await userEvent.type(sidInput, VALID_SID);
+      unmount();
+
+      render(<SetupWizard />);
+      expect(await screen.findByDisplayValue(VALID_URL)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(VALID_SID)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /save & connect/i })).toBeEnabled();
+    });
+
+    it('clears the draft after a successful setup', async () => {
+      render(<SetupWizard />);
+      await fillAndSubmit(VALID_URL, VALID_SID);
+      await waitFor(() => {
+        expect(chrome.storage.local.remove).toHaveBeenCalledWith('setupWizardDraft');
+      });
+      expect(localStore).not.toHaveProperty('setupWizardDraft');
+    });
+
+    it('keeps working when chrome.storage.local fails', async () => {
+      (chrome.storage.local.get as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('boom'));
+      (chrome.storage.local.set as ReturnType<typeof vi.fn>).mockImplementation(() => {
+        throw new Error('QUOTA_BYTES exceeded');
+      });
+      render(<SetupWizard />);
+      const { urlInput, sidInput } = fillForm();
+      await userEvent.type(urlInput, VALID_URL);
+      await userEvent.type(sidInput, VALID_SID);
+      expect(urlInput).toHaveValue(VALID_URL);
+      expect(sidInput).toHaveValue(VALID_SID);
     });
   });
 

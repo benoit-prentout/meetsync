@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GithubIcon } from '@/components/ui/GithubIcon';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -7,6 +7,18 @@ import { isAppsScriptExecUrl } from '@/lib/deploymentUrl';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MeetSyncMark } from '@/components/Brand';
+
+// The toolbar popup closes on blur (e.g. when switching tabs to copy the script ID),
+// which wipes React state. Keep the two (non-secret) fields as a draft in storage.local.
+const DRAFT_KEY = 'setupWizardDraft';
+type Draft = { url: string; scriptId: string };
+
+// ponytail: best-effort, storage errors (sync throws or rejections) are ignored.
+function saveDraft(draft: Draft | null) {
+  Promise.resolve()
+    .then(() => (draft ? chrome.storage.local.set({ [DRAFT_KEY]: draft }) : chrome.storage.local.remove(DRAFT_KEY)))
+    .catch(() => {});
+}
 
 export function SetupWizard() {
   const { signIn } = useAuth();
@@ -17,6 +29,18 @@ export function SetupWizard() {
   const [scriptIdError, setScriptIdError] = useState<string | null>(null);
   const [phase, setPhase] = useState<'idle' | 'connecting' | 'verifying'>('idle');
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.resolve()
+      .then(() => chrome.storage.local.get(DRAFT_KEY))
+      .then((result) => {
+        const draft = result?.[DRAFT_KEY] as Partial<Draft> | undefined;
+        // Functional updates: never clobber anything typed before the read resolved
+        if (draft?.url) setUrl((prev) => prev || draft.url!);
+        if (draft?.scriptId) setScriptIdValue((prev) => prev || draft.scriptId!);
+      })
+      .catch(() => {});
+  }, []);
 
   function validateUrl(value: string): string | null {
     const trimmed = value.trim();
@@ -38,12 +62,14 @@ export function SetupWizard() {
     const value = e.target.value;
     setUrl(value);
     setUrlError(validateUrl(value));
+    saveDraft({ url: value, scriptId: scriptIdValue });
   }
 
   function handleScriptIdChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value;
     setScriptIdValue(value);
     setScriptIdError(validateScriptId(value));
+    saveDraft({ url, scriptId: value });
   }
 
   async function handleSave() {
@@ -72,6 +98,7 @@ export function SetupWizard() {
       const token = await signIn();
       setPhase('verifying');
       await api.getStatus(token);
+      saveDraft(null);
       // Only transition to Dashboard after connection test succeeds
       setDeploymentUrl(url.trim());
       setScriptId(scriptIdValue.trim());
