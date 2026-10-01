@@ -160,7 +160,7 @@ export function Analytics() {
                 <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}KB`} />
                 <Tooltip
                   contentStyle={{ fontSize: 11, border: '1px solid #e2e8f0', borderRadius: 6 }}
-                  formatter={(v: number) => [`${v} KB`, 'Doc Size']}
+                  formatter={(v) => [`${v} KB`, 'Doc Size']}
                 />
                 <Area type="monotone" dataKey="sizeKB" stroke="#1a73e8" strokeWidth={2} fill="url(#growthGradient)" />
               </AreaChart>
@@ -197,7 +197,7 @@ export function Analytics() {
               <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}s`} />
               <Tooltip
                 contentStyle={{ fontSize: 11, border: '1px solid #e2e8f0', borderRadius: 6 }}
-                formatter={(v: number) => [`${v.toFixed(1)}s`, 'Duration']}
+                formatter={(v) => [`${Number(v).toFixed(1)}s`, 'Duration']}
               />
               <Line type="monotone" dataKey="seconds" stroke="#1a73e8" strokeWidth={2} dot={{ r: 2 }} />
             </LineChart>

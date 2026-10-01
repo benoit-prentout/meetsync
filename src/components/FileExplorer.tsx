@@ -233,7 +233,7 @@ export function FileExplorer() {
               />
               <Tooltip
                 contentStyle={{ fontSize: 11, border: '1px solid #e2e8f0', borderRadius: 6 }}
-                formatter={(v: number) => [v, 'files']}
+                formatter={(v) => [v, 'files']}
               />
               <Bar dataKey="count" fill="#1a73e8" radius={[2, 2, 0, 0]} maxBarSize={14} />
             </BarChart>
