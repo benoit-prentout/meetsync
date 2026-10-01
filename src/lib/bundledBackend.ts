@@ -83,12 +83,18 @@ function isWithinTimeWindow_() {
   return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
 }
 
+// Cache key for a validated token: SHA-256 hex of the full token (never the raw token).
+function authCacheKey_(accessToken) {
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, accessToken);
+  return 'auth_' + bytes.map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); }).join('');
+}
+
 function validateCaller_(accessToken) {
   if (!accessToken) return false;
-  var cache = CacheService.getScriptCache();
-  var cached = cache.get('auth_' + accessToken.slice(0, 32));
-  if (cached === 'ok') return true;
   try {
+    var cache = CacheService.getScriptCache();
+    var cacheKey = authCacheKey_(accessToken);
+    if (cache.get(cacheKey) === 'ok') return true;
     var resp = UrlFetchApp.fetch(
       'https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + encodeURIComponent(accessToken),
       { muteHttpExceptions: true }
@@ -96,29 +102,24 @@ function validateCaller_(accessToken) {
     if (resp.getResponseCode() !== 200) return false;
     var info = JSON.parse(resp.getContentText());
     if (!info.email) return false;
+    if ('email_verified' in info && String(info.email_verified) !== 'true') return false;
 
-    var props = PropertiesService.getScriptProperties();
-    var sessionEmail = '';
-    try { sessionEmail = Session.getActiveUser().getEmail() || ''; } catch (_) {}
-    var storedOwner = props.getProperty('OWNER_EMAIL') || '';
-
-    // First-run seeding: if no OWNER_EMAIL stored yet AND we have a sessionEmail, trust it once.
-    if (!storedOwner && sessionEmail) {
-      props.setProperty('OWNER_EMAIL', sessionEmail);
-      storedOwner = sessionEmail;
-    }
-    // First-run for personal accounts: if no OWNER_EMAIL AND sessionEmail empty,
-    // seed from tokeninfo. This trusts the first caller; acceptable because
-    // deploying as "Execute as: Me" already binds the script to one user.
-    if (!storedOwner && !sessionEmail) {
-      props.setProperty('OWNER_EMAIL', info.email);
-      storedOwner = info.email;
-      console.warn('validateCaller_: seeded OWNER_EMAIL from tokeninfo (personal account fallback): ' + info.email);
+    // Web app runs "Execute as: Me" with access "Anyone": getActiveUser() is the
+    // CALLER, so only the effective user (the deployer) identifies the owner.
+    // If that is empty (some personal accounts), use a manually set OWNER_EMAIL
+    // script property. Never written here: auto-seeding would let the first
+    // caller take ownership.
+    var owner = '';
+    try { owner = Session.getEffectiveUser().getEmail() || ''; } catch (_) {}
+    if (!owner) owner = PropertiesService.getScriptProperties().getProperty('OWNER_EMAIL') || '';
+    if (!owner) {
+      Logger.log('validateCaller_: owner email unavailable. Set the OWNER_EMAIL script property to your Google account email (Project Settings → Script Properties).');
+      return false;
     }
 
-    var ok = info.email === storedOwner || (sessionEmail && info.email === sessionEmail);
-    if (ok) {
-      cache.put('auth_' + accessToken.slice(0, 32), 'ok', 300);
+    var norm = function (s) { return String(s).trim().toLowerCase(); };
+    if (norm(info.email) === norm(owner)) {
+      cache.put(cacheKey, 'ok', 300);
       return true;
     }
     return false;
@@ -298,6 +299,9 @@ function validateSettings_(settings) {
   });
   ['sourceFolderName','archiveFolderId','masterDocId','sourceFileNamePattern','exclusionPatterns'].forEach(function(k){
     if (k in settings && !isStr(settings[k])) push(k, 'must be string');
+  });
+  ['archiveFolderId','masterDocId'].forEach(function(k){
+    if (isStr(settings[k]) && settings[k] !== '' && !/^[A-Za-z0-9_-]{10,}\$/.test(settings[k])) push(k, 'must be a Drive ID (letters, digits, _ or -, 10+ chars)');
   });
   ['syncWindowStart','syncWindowEnd'].forEach(function(k){
     if (k in settings && !isHHMM(settings[k])) push(k, 'must be HH:MM (24h)');
@@ -919,7 +923,7 @@ function checkAndArchive_(docId, timezone, force) {
     // Mark the archive as synced locally
     props.setProperty('SYNC_' + copy.id, String(Date.now()));
 
-    const metaUrl = \`https://docs.googleapis.com/v1/documents/\${docId}?fields=body.content.endIndex\`;
+    const metaUrl = \`https://docs.googleapis.com/v1/documents/\${encodeURIComponent(docId)}?fields=body.content.endIndex\`;
     const metaResp = UrlFetchApp.fetch(metaUrl, {
       headers: { Authorization: \`Bearer \${ScriptApp.getOAuthToken()}\` },
     });
