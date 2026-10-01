@@ -470,6 +470,8 @@ function appendMeetNotesToMasterRestAPI(docId) {
   const toProcess = [];
   const updatedIds = [];
   let found = 0;
+  // One read for all markers; they are only written after the batch insert, so this snapshot stays valid.
+  const allProps = props.getProperties();
 
   // ponytail: pages through all already-synced notes each run; add a modifiedTime cursor if Drive quota bites.
   do {
@@ -484,7 +486,7 @@ function appendMeetNotesToMasterRestAPI(docId) {
       if (CONFIG.EXCLUSION_PATTERNS && isExcluded_(file.name, CONFIG.EXCLUSION_PATTERNS)) {
         continue;
       }
-      const lastSyncTime = props.getProperty('SYNC_' + file.id);
+      const lastSyncTime = allProps['SYNC_' + file.id];
 
       if (!lastSyncTime) {
         toProcess.push(file);

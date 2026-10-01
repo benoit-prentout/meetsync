@@ -212,6 +212,20 @@ describe('Meet notes discovery (PL1 / M1)', () => {
     expect(s.exported).toEqual(['new1']);
   });
 
+  it('reads sync markers once per run, not one getProperty per file', () => {
+    const synced = many('old', 100);
+    const props = Object.fromEntries(synced.map((f) => ['SYNC_' + f.id, String(T)]));
+    const s = setup({ pages: [synced, [note('new1')]], props });
+    const real = s.gs.PropertiesService.getScriptProperties();
+    const markerReads: string[] = [];
+    s.gs.PropertiesService = {
+      getScriptProperties: () => ({ ...real, getProperty: (k: string) => { if (k.startsWith('SYNC_')) markerReads.push(k); return real.getProperty(k); } }),
+    };
+    expect(s.gs.runSync().result).toMatchObject({ synced: 1, updated: 0, errors: 0 });
+    expect(markerReads).toEqual([]);
+    expect(s.exported).toEqual(['new1']);
+  });
+
   it('stops paging once MAX_FILES_PER_RUN is reached', () => {
     const s = setup({ pages: [many('p', 30), many('q', 30)], config: { MAX_FILES_PER_RUN: 20 } });
     expect(s.gs.runSync().result.synced).toBe(20);
