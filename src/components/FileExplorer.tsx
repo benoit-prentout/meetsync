@@ -108,7 +108,7 @@ function FileRow({
       </div>
       {isExpanded && (
         <div
-          className={`border border-t-0 rounded-b-lg px-4 py-3 text-xs space-y-2 ${
+          className={`border border-t-0 rounded-b-lg px-4 py-3 text-xs [&>:not(:first-child)]:mt-2 ${
             isMaster ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-200'
           }`}
         >
@@ -207,7 +207,7 @@ export function FileExplorer() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="[&>:not(:first-child)]:mt-3">
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Total Files" value={String(enriched.length)} />
         <StatCard
@@ -251,13 +251,13 @@ export function FileExplorer() {
             placeholder="Search files..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
         <select
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
-          className="text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
         >
           <option value="lastSynced">Last Synced</option>
           <option value="name">Name</option>

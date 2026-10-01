@@ -129,7 +129,7 @@ export function Analytics() {
   }));
 
   return (
-    <div className="space-y-3">
+    <div className="[&>:not(:first-child)]:mt-3">
       <div className="grid grid-cols-4 gap-3">
         <StatCard label="Total Syncs" value={String(r1.totalSyncs)} />
         <StatCard label="Files Processed" value={String(r1.totalFiles)} />
@@ -180,7 +180,7 @@ export function Analytics() {
                 }} />
             </div>
             {r2.growthRateKBPerDay > 0 && (
-              <div className="text-[11px] text-slate-500 space-y-0.5">
+              <div className="text-[11px] text-slate-500 [&>:not(:first-child)]:mt-0.5">
                 <p>+{r2.growthRateKBPerDay.toFixed(1)} KB/day</p>
                 {r2.daysToArchive !== null && <p>~{r2.daysToArchive}d until archive</p>}
               </div>
@@ -208,7 +208,7 @@ export function Analytics() {
           <div className="flex flex-col gap-2">
             <div className="flex gap-0.5 flex-wrap">
               {reliabilityData.map((entry, i) => (
-                <div key={i} className="w-3 h-3 rounded-sm cursor-default"
+                <div key={i} className="w-3 h-3 rounded-xs cursor-default"
                   style={{ backgroundColor: entry.status === 'success' ? '#16a34a' : entry.status === 'partial' ? '#f59e0b' : '#ef4444' }}
                   title={`${entry.date}: ${entry.status}`} />
               ))}

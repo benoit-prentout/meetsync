@@ -134,7 +134,7 @@ export function Notifications() {
           {notifications.length}
         </span>
       </div>
-      <div className="space-y-2">
+      <div className="[&>:not(:first-child)]:mt-2">
         {notifications.map((n) => (
           <div
             key={n.id}

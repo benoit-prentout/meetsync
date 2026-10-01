@@ -27,7 +27,7 @@ const StatusRow = ({
   description: string;
   tip?: string;
 }) => (
-  <div className="border border-slate-100 rounded-lg p-3 space-y-1">
+  <div className="border border-slate-100 rounded-lg p-3 [&>:not(:first-child)]:mt-1">
     <div className="flex items-center gap-2">
       {icon}
       <span className={`text-xs font-semibold ${color}`}>{label}</span>
@@ -44,18 +44,18 @@ export function Help() {
     <div className="grid gap-4">
       {/* Setup guide */}
       <Section title="Getting Started">
-        <div className="space-y-3">
+        <div className="[&>:not(:first-child)]:mt-3">
           <Step n={1}>
             Create (or open) a Google Doc that will serve as your <strong>Master Document</strong> — this is where all meeting notes get appended. Copy its ID from the URL:{' '}
-            <code className="bg-slate-100 px-1 rounded text-[10px]">docs.google.com/document/d/<strong>[ID]</strong>/edit</code>
+            <code className="bg-slate-100 px-1 rounded-sm text-[10px]">docs.google.com/document/d/<strong>[ID]</strong>/edit</code>
           </Step>
           <Step n={2}>
             Create a Google Drive folder for <strong>Archives</strong>. When the master doc gets large, old content is moved here automatically. Copy the folder ID from its URL:{' '}
-            <code className="bg-slate-100 px-1 rounded text-[10px]">drive.google.com/drive/folders/<strong>[ID]</strong></code>
+            <code className="bg-slate-100 px-1 rounded-sm text-[10px]">drive.google.com/drive/folders/<strong>[ID]</strong></code>
           </Step>
           <Step n={3}>
-            Deploy the <strong>Apps Script backend</strong>: open script.google.com, paste <code className="bg-slate-100 px-1 rounded text-[10px]">Code.gs</code>, deploy as a web app (<em>Execute as: Me</em>, <em>Who has access: Anyone</em>). Copy the deployment URL AND note the Script Project ID from the editor URL:{' '}
-            <code className="bg-slate-100 px-1 rounded text-[10px]">script.google.com/home/projects/<strong>[SCRIPT_ID]</strong>/edit</code>
+            Deploy the <strong>Apps Script backend</strong>: open script.google.com, paste <code className="bg-slate-100 px-1 rounded-sm text-[10px]">Code.gs</code>, deploy as a web app (<em>Execute as: Me</em>, <em>Who has access: Anyone</em>). Copy the deployment URL AND note the Script Project ID from the editor URL:{' '}
+            <code className="bg-slate-100 px-1 rounded-sm text-[10px]">script.google.com/home/projects/<strong>[SCRIPT_ID]</strong>/edit</code>
           </Step>
           <Step n={4}>
             Open the extension popup and complete the <strong>Setup Wizard</strong>: sign in, paste your deployment URL AND Script Project ID, click <strong>Save &amp; Connect</strong>. The wizard verifies the backend connection before completing.
@@ -73,7 +73,7 @@ export function Help() {
 
       {/* Status meanings */}
       <Section title="Sync Statuses — What They Mean">
-        <div className="space-y-2">
+        <div className="[&>:not(:first-child)]:mt-2">
           <StatusRow
             icon={<CheckCircle className="w-4 h-4 text-green-600" />}
             label="Success"
@@ -102,9 +102,9 @@ export function Help() {
 
       {/* How to ensure everything saves */}
       <Section title="Ensuring Everything Saves Correctly">
-        <div className="space-y-2 text-xs text-slate-600">
+        <div className="[&>:not(:first-child)]:mt-2 text-xs text-slate-600">
           <p className="font-medium text-slate-800">Checklist before syncing:</p>
-          <ul className="space-y-1.5 pl-1">
+          <ul className="[&>:not(:first-child)]:mt-1.5 pl-1">
             {[
               'Master Doc ID and Archive Folder ID are set and correct in Settings.',
               'The Apps Script backend is deployed with Execute as: Me and Who has access: Anyone (not "Anyone with Google account") — the script runs under your account and has access to your Drive.',
@@ -125,7 +125,7 @@ export function Help() {
 
       {/* Auto-sync */}
       <Section title="Auto-Sync">
-        <div className="space-y-2 text-xs text-slate-600">
+        <div className="[&>:not(:first-child)]:mt-2 text-xs text-slate-600">
           <p>
             Enable <strong>Auto-Sync</strong> in{' '}
             <span className="inline-flex items-center gap-0.5 font-medium text-slate-700"><Settings className="w-3 h-3" /> Settings</span>{' '}
@@ -142,7 +142,7 @@ export function Help() {
 
       {/* Archive */}
       <Section title="Archiving">
-        <div className="space-y-2 text-xs text-slate-600">
+        <div className="[&>:not(:first-child)]:mt-2 text-xs text-slate-600">
           <p>
             The <span className="inline-flex items-center gap-0.5 font-medium text-slate-700"><Archive className="w-3 h-3" /> Archive Now</span> button (or automatic monthly archive) moves the current contents of your master doc into a dated Google Doc in your Archive Folder, then clears the master doc.
           </p>
@@ -158,11 +158,11 @@ export function Help() {
 
       {/* Analytics */}
       <Section title="Analytics">
-        <div className="space-y-2 text-xs text-slate-600">
+        <div className="[&>:not(:first-child)]:mt-2 text-xs text-slate-600">
           <p>
             The <span className="inline-flex items-center gap-0.5 font-medium text-slate-700"><BarChart3 className="w-3 h-3" /> Analytics</span> tab gives you insight into your sync activity over time:
           </p>
-          <ul className="space-y-1.5 pl-1">
+          <ul className="[&>:not(:first-child)]:mt-1.5 pl-1">
             {[
               'Stat cards show total syncs, files processed, success rate, growth rate, average duration, and your current success streak.',
               'Doc Size Growth chart tracks how your master document is growing with a visual progress bar toward the archive threshold.',
@@ -182,11 +182,11 @@ export function Help() {
 
       {/* Files */}
       <Section title="Files">
-        <div className="space-y-2 text-xs text-slate-600">
+        <div className="[&>:not(:first-child)]:mt-2 text-xs text-slate-600">
           <p>
             The <span className="inline-flex items-center gap-0.5 font-medium text-slate-700"><FolderOpen className="w-3 h-3" /> Files</span> tab shows all synced files with their sync history:
           </p>
-          <ul className="space-y-1.5 pl-1">
+          <ul className="[&>:not(:first-child)]:mt-1.5 pl-1">
             {[
               'Your Master Document is pinned at the top with a star icon for quick access.',
               'Each file shows its name, size, and a status dot: green (synced recently), amber (active), grey (older sync).',
@@ -205,14 +205,14 @@ export function Help() {
 
       {/* Backend Updates */}
       <Section title="Backend Updates">
-        <div className="space-y-2 text-xs text-slate-600">
+        <div className="[&>:not(:first-child)]:mt-2 text-xs text-slate-600">
           <p>
             The extension can check and update your Apps Script backend directly from{' '}
             <span className="inline-flex items-center gap-0.5 font-medium text-slate-700"><Settings className="w-3 h-3" /> Settings</span>:
           </p>
-          <ol className="space-y-1.5 list-decimal list-inside">
+          <ol className="[&>:not(:first-child)]:mt-1.5 list-decimal list-inside">
             <li>
-              Make sure your <strong>Script Project ID</strong> is set in the Apps Script Deployment section (find it in the editor URL: <code className="bg-slate-100 px-1 rounded text-[10px]">script.google.com/home/projects/<strong>[SCRIPT_ID]</strong>/edit</code>).
+              Make sure your <strong>Script Project ID</strong> is set in the Apps Script Deployment section (find it in the editor URL: <code className="bg-slate-100 px-1 rounded-sm text-[10px]">script.google.com/home/projects/<strong>[SCRIPT_ID]</strong>/edit</code>).
             </li>
             <li>
               Check the <strong>Backend Status</strong> indicator — it compares the deployed script hash against the version bundled in your extension.
@@ -229,7 +229,7 @@ export function Help() {
 
       {/* Resources */}
       <Section title="Resources">
-        <div className="space-y-2">
+        <div className="[&>:not(:first-child)]:mt-2">
           <a
             href="https://script.google.com"
             onClick={(e) => { e.preventDefault(); chrome.tabs.create({ url: 'https://script.google.com' }); }}
