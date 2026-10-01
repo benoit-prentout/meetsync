@@ -1,6 +1,6 @@
 export type ApiErrorCode =
   | 'NETWORK'         // fetch threw before getting a response (offline, DNS, CORS)
-  | 'TIMEOUT'         // AbortController fired the 90s deadline
+  | 'TIMEOUT'         // AbortController fired the request deadline (90s; 330s for sync/archive)
   | 'HTML_RESPONSE'   // backend returned HTML (typically a missing-doGet or login-redirect)
   | 'INVALID_JSON'    // 2xx body wasn't valid JSON
   | 'UNAUTHORIZED'    // HTTP 401

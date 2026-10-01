@@ -375,32 +375,57 @@ function getFiles() {
   return { success: true, files: files };
 }
 
-function runSync() {
-  return logRun_('runSync', function() {
-    if (!isWithinTimeWindow_()) {
-      return { success: true, result: { synced: 0, updated: 0, errors: 0, message: 'Outside sync time window — skipped' } };
-    }
-    const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
-    const result = appendMeetNotesToMasterRestAPI(docId);
+// Script locks are not reentrant, so code already under the lock (logSyncRun_,
+// appendRunLog_ called from inside a sync) runs directly instead of waiting on itself.
+var holdsScriptLock_ = false;
 
-    return {
-      success: true,
-      result: result
-    };
+function withScriptLock_(waitMs, fn) {
+  if (holdsScriptLock_) return fn();
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(waitMs)) {
+    var err = new Error('Another sync or archive is already running');
+    err.code = 'BUSY';
+    throw err;
+  }
+  holdsScriptLock_ = true;
+  try {
+    return fn();
+  } finally {
+    holdsScriptLock_ = false;
+    try { lock.releaseLock(); } catch (_) {}
+  }
+}
+
+function runSync(lockWaitMs) {
+  return logRun_('runSync', function() {
+    return withScriptLock_(lockWaitMs == null ? 30000 : lockWaitMs, function() {
+      if (!isWithinTimeWindow_()) {
+        return { success: true, result: { synced: 0, updated: 0, errors: 0, message: 'Outside sync time window — skipped' } };
+      }
+      const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
+      const result = appendMeetNotesToMasterRestAPI(docId);
+
+      return {
+        success: true,
+        result: result
+      };
+    });
   });
 }
 
 function runArchive() {
   return logRun_('runArchive', function() {
-    const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
-    const timezone = Session.getScriptTimeZone() || 'UTC';
+    return withScriptLock_(30000, function() {
+      const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
+      const timezone = Session.getScriptTimeZone() || 'UTC';
 
-    checkAndArchive_(docId, timezone, true);
+      checkAndArchive_(docId, timezone, true);
 
-    return {
-      success: true,
-      message: 'Archive created'
-    };
+      return {
+        success: true,
+        message: 'Archive created'
+      };
+    });
   });
 }
 
@@ -698,8 +723,16 @@ function showHelp() {
 /**
  * Menu "Sync Now" and the 15-min trigger: runs the same sync as the REST API.
  */
-function appendMeetNotesToMaster() {
-  const r = runSync().result;
+function appendMeetNotesToMaster(e) {
+  let r;
+  try {
+    // Time-driven triggers pass an event with triggerUid: skip fast if a sync is running.
+    r = runSync(e && e.triggerUid ? 1000 : 30000).result;
+  } catch (err) {
+    if (err.code !== 'BUSY') throw err;
+    showAlert_(`⏳ ${err.message}. Try again in a minute.`); // no-op in triggers (no UI)
+    return;
+  }
   if (r.message) {
     showAlert_(r.message === 'Outside sync time window — skipped' ? r.message : 'Everything is already up to date!');
     return;
@@ -718,7 +751,13 @@ function forceArchive() {
   if (ui.alert('Archive', 'Copy this document to an archive and clear the current content?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
   const docId = DocumentApp.getActiveDocument().getId();
   const timezone = Session.getScriptTimeZone() || 'UTC';
-  checkAndArchive_(docId, timezone, true);
+  try {
+    withScriptLock_(30000, () => checkAndArchive_(docId, timezone, true));
+  } catch (err) {
+    if (err.code !== 'BUSY') throw err;
+    showAlert_(`⏳ ${err.message}. Try again in a minute.`);
+    return;
+  }
   showAlert_('✅ Archive created. The master document has been cleared.');
 }
 
@@ -891,25 +930,23 @@ function showSyncHistory() {
  * Logs a sync run to the internal history.
  */
 function logSyncRun_(run) {
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(2000)) {
-    console.warn('[logSyncRun_] could not acquire lock; dropping this entry to avoid race');
-    return;
-  }
   try {
-    try {
-      const props = PropertiesService.getScriptProperties();
-      run.docSize = parseInt(props.getProperty('estimatedChars') || '0', 10);
-      var parsed = JSON.parse(props.getProperty('syncHistory') || '[]');
-      var history = Array.isArray(parsed) ? parsed : [];
-      history.unshift(run);
-      if (history.length > CONFIG.HISTORY_SIZE) history.length = CONFIG.HISTORY_SIZE;
-      props.setProperty('syncHistory', JSON.stringify(history));
-    } catch (e) {
-      console.error(`logSyncRun_ failed: ${e.message}`);
-    }
-  } finally {
-    try { lock.releaseLock(); } catch (_) {}
+    withScriptLock_(2000, function() {
+      try {
+        const props = PropertiesService.getScriptProperties();
+        run.docSize = parseInt(props.getProperty('estimatedChars') || '0', 10);
+        var parsed = JSON.parse(props.getProperty('syncHistory') || '[]');
+        var history = Array.isArray(parsed) ? parsed : [];
+        history.unshift(run);
+        if (history.length > CONFIG.HISTORY_SIZE) history.length = CONFIG.HISTORY_SIZE;
+        props.setProperty('syncHistory', JSON.stringify(history));
+      } catch (e) {
+        console.error(`logSyncRun_ failed: ${e.message}`);
+      }
+    });
+  } catch (e) {
+    if (e.code !== 'BUSY') throw e;
+    console.warn('[logSyncRun_] could not acquire lock; dropping this entry to avoid race');
   }
 }
 
@@ -1045,23 +1082,21 @@ function exportFileAsText_(fileId) {
 }
 
 function appendRunLog_(entry) {
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(2000)) {
-    console.warn('[appendRunLog_] could not acquire lock; dropping this entry to avoid race');
-    return;
-  }
   try {
-    var props = PropertiesService.getScriptProperties();
-    var existing = [];
-    try {
-      var parsed = JSON.parse(props.getProperty('RUN_LOG') || '[]');
-      if (Array.isArray(parsed)) existing = parsed;
-    } catch (_) {}
-    existing.push(entry);
-    if (existing.length > 50) existing = existing.slice(existing.length - 50);
-    props.setProperty('RUN_LOG', JSON.stringify(existing));
-  } finally {
-    try { lock.releaseLock(); } catch (_) {}
+    withScriptLock_(2000, function() {
+      var props = PropertiesService.getScriptProperties();
+      var existing = [];
+      try {
+        var parsed = JSON.parse(props.getProperty('RUN_LOG') || '[]');
+        if (Array.isArray(parsed)) existing = parsed;
+      } catch (_) {}
+      existing.push(entry);
+      if (existing.length > 50) existing = existing.slice(existing.length - 50);
+      props.setProperty('RUN_LOG', JSON.stringify(existing));
+    });
+  } catch (e) {
+    if (e.code !== 'BUSY') throw e;
+    console.warn('[appendRunLog_] could not acquire lock; dropping this entry to avoid race');
   }
 }
 

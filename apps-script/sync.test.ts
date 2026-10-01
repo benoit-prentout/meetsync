@@ -59,7 +59,11 @@ function setup(o: {
       Docs: { Documents: { batchUpdate } },
       DocumentApp: {
         getActiveDocument: () => ({ getId: () => 'boundDoc0000' }),
-        getUi: () => ({ alert: (m: string) => alerts.push(m) }),
+        getUi: () => ({
+          alert: (m: string) => { alerts.push(m); return 'YES'; },
+          Button: { YES: 'YES' },
+          ButtonSet: { YES_NO: 'YES_NO', OK: 'OK' },
+        }),
       },
       ...o.globals,
     },
@@ -231,5 +235,82 @@ describe('Meet notes discovery (PL1 / M1)', () => {
     const s = setup({ files: [note('a1')], folders: [{ id: 'F1' }], config: { SOURCE_FOLDER_NAME: 'My notes' } });
     s.gs.runSync();
     expect(s.sourceQuery()).toContain("('F1' in parents or (name contains");
+  });
+});
+
+// Models Apps Script's script lock as NOT reentrant: one holder at a time, even within an execution.
+function scriptLock(heldByOther = false) {
+  const state = { held: heldByOther, waits: [] as number[] };
+  const LockService = {
+    getScriptLock: () => {
+      let mine = false;
+      return {
+        tryLock: (ms: number) => {
+          state.waits.push(ms);
+          if (state.held) return false;
+          state.held = mine = true;
+          return true;
+        },
+        releaseLock: () => { if (mine) state.held = mine = false; },
+        hasLock: () => mine,
+      };
+    },
+  };
+  return { state, LockService };
+}
+
+describe('sync/archive concurrency lock (B2)', () => {
+  it('holds the script lock during the sync and still records history + run log', () => {
+    const lock = scriptLock();
+    let heldDuringWrite = false;
+    const s = setup({ files: [note('a1')], globals: { LockService: lock.LockService } });
+    s.batchUpdate.mockImplementation(() => { heldDuringWrite = lock.state.held; return {}; });
+    expect(s.gs.runSync().result.synced).toBe(1);
+    expect(heldDuringWrite).toBe(true);
+    expect(lock.state.held).toBe(false);
+    expect(JSON.parse(s.props.syncHistory)).toHaveLength(1);
+    expect(JSON.parse(s.props.RUN_LOG)).toEqual([expect.objectContaining({ action: 'runSync', ok: true })]);
+  });
+
+  it('REST sync returns a busy error without touching Drive when another run holds the lock', () => {
+    const lock = scriptLock(true);
+    const s = setup({ files: [note('a1')], globals: { LockService: lock.LockService } });
+    s.gs.validateCaller_ = () => true;
+    const res = JSON.parse(s.gs.handleRequest({ parameter: { action: 'sync', token: 't' } }).text);
+    expect(res).toEqual({ success: false, error: 'Another sync or archive is already running' });
+    expect(lock.state.waits[0]).toBe(30000);
+    expect(s.list).not.toHaveBeenCalled();
+    expect(s.batchUpdate).not.toHaveBeenCalled();
+  });
+
+  it('REST archive returns a busy error when another run holds the lock', () => {
+    const copy = vi.fn();
+    const s = setup({ config: { ARCHIVE_THRESHOLD_CHARS: 800000 }, globals: { LockService: scriptLock(true).LockService, Drive: { Files: { copy } } } });
+    s.gs.validateCaller_ = () => true;
+    const res = JSON.parse(s.gs.handleRequest({ parameter: { action: 'archive', token: 't' } }).text);
+    expect(res).toEqual({ success: false, error: 'Another sync or archive is already running' });
+    expect(copy).not.toHaveBeenCalled();
+  });
+
+  it('time-driven trigger skips quickly and quietly when busy', () => {
+    const lock = scriptLock(true);
+    const s = setup({ files: [note('a1')], globals: { LockService: lock.LockService } });
+    expect(() => s.gs.appendMeetNotesToMaster({ triggerUid: '123' })).not.toThrow();
+    expect(lock.state.waits[0]).toBeLessThanOrEqual(1000);
+    expect(s.list).not.toHaveBeenCalled();
+  });
+
+  it('menu Sync Now tells the user when busy', () => {
+    const s = setup({ files: [note('a1')], globals: { LockService: scriptLock(true).LockService } });
+    s.gs.appendMeetNotesToMaster();
+    expect(s.alerts).toEqual([expect.stringContaining('Another sync or archive is already running')]);
+  });
+
+  it('menu Archive Now tells the user when busy and does not archive', () => {
+    const copy = vi.fn();
+    const s = setup({ config: { ARCHIVE_THRESHOLD_CHARS: 800000 }, globals: { LockService: scriptLock(true).LockService, Drive: { Files: { copy } } } });
+    s.gs.forceArchive();
+    expect(copy).not.toHaveBeenCalled();
+    expect(s.alerts.at(-1)).toContain('Another sync or archive is already running');
   });
 });
