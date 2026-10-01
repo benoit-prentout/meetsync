@@ -142,7 +142,7 @@ export function Settings() {
       <div className="bg-white border border-slate-200 rounded-lg p-4">
         <p className="text-sm font-semibold text-slate-900 mb-1">Apps Script Deployment</p>
         <p className="text-xs text-slate-400 mb-3">The URL of your deployed Apps Script web app.</p>
-        <div className="[&>:not(:first-child)]:mt-2">
+        <div className="space-y-2">
           <Label htmlFor="deploymentUrl">Deployment URL</Label>
           <div className="flex items-center gap-2">
             <Input
@@ -165,7 +165,7 @@ export function Settings() {
             <p className="text-[10px] text-slate-400 truncate">{deploymentUrl}</p>
           )}
         </div>
-        <div className="[&>:not(:first-child)]:mt-2 mt-3">
+        <div className="space-y-2 mt-3">
           <Label htmlFor="scriptId">Script Project ID</Label>
           <p className="text-[10px] text-slate-400">Found in the Apps Script editor URL: <code className="text-slate-500">script.google.com/home/projects/…/edit</code></p>
           <div className="flex items-center gap-2">
@@ -293,8 +293,8 @@ export function Settings() {
       {/* Google Drive Configuration */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
         <p className="text-sm font-semibold text-slate-900 mb-3">Google Drive Configuration</p>
-        <div className="[&>:not(:first-child)]:mt-4">
-          <div className="[&>:not(:first-child)]:mt-2">
+        <div className="space-y-4">
+          <div className="space-y-2">
             <Label htmlFor="masterDocId">Master Document ID</Label>
             <div className="flex items-center gap-2">
               <div className="flex-1 flex items-center border border-input rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/50 focus-within:ring-offset-0">
@@ -350,7 +350,7 @@ export function Settings() {
               <p className="text-[10px] text-red-500">{docIdError}</p>
             )}
           </div>
-          <div className="[&>:not(:first-child)]:mt-2">
+          <div className="space-y-2">
             <Label htmlFor="archiveFolderId">Archive Folder ID</Label>
             <div className="flex items-center gap-2">
               <div className="flex-1 flex items-center border border-input rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/50 focus-within:ring-offset-0">
@@ -406,7 +406,7 @@ export function Settings() {
               <p className="text-[10px] text-red-500">{folderIdError}</p>
             )}
           </div>
-          <div className="[&>:not(:first-child)]:mt-2">
+          <div className="space-y-2">
             <Label htmlFor="sourceFolderName">Source Folder Name</Label>
             <Input
               id="sourceFolderName"
@@ -421,9 +421,9 @@ export function Settings() {
       {/* Sync Settings */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
         <p className="text-sm font-semibold text-slate-900 mb-3">Sync Settings</p>
-        <div className="[&>:not(:first-child)]:mt-4">
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <Label>Enable Update Detection</Label>
+            <Label className="!pt-0 !leading-none">Enable Update Detection</Label>
             <Switch
               checked={settings.enableUpdateDetection}
               onClick={() => updateSetting('enableUpdateDetection', !settings.enableUpdateDetection)}
@@ -440,14 +440,14 @@ export function Settings() {
             />
           </div>
           <div className="flex items-center justify-between">
-            <Label>Enable Monthly Archive</Label>
+            <Label className="!pt-0 !leading-none">Enable Monthly Archive</Label>
             <Switch
               checked={settings.enableMonthlyArchive}
               onClick={() => updateSetting('enableMonthlyArchive', !settings.enableMonthlyArchive)}
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="[&>:not(:first-child)]:mt-2">
+            <div className="space-y-2">
               <Label htmlFor="maxFilesPerRun">Max Files Per Run</Label>
               <Input
                 id="maxFilesPerRun"
@@ -456,7 +456,7 @@ export function Settings() {
                 onChange={(e) => updateSetting('maxFilesPerRun', parseInt(e.target.value, 10) || 10)}
               />
             </div>
-            <div className="[&>:not(:first-child)]:mt-2">
+            <div className="space-y-2">
               <Label htmlFor="maxAgeDays">Max Age (Days)</Label>
               <Input
                 id="maxAgeDays"
@@ -476,7 +476,7 @@ export function Settings() {
       {/* Auto-Sync */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
         <p className="text-sm font-semibold text-slate-900 mb-3">Auto-Sync</p>
-        <div className="[&>:not(:first-child)]:mt-4">
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <Label>Enable Auto-Sync</Label>
@@ -489,7 +489,7 @@ export function Settings() {
           </div>
           {autoSyncEnabled && (
             <>
-            <div className="[&>:not(:first-child)]:mt-2">
+            <div className="space-y-2">
               <Label htmlFor="autoSyncInterval">Interval</Label>
               <select
                 id="autoSyncInterval"
@@ -517,7 +517,7 @@ export function Settings() {
             </div>
             {settings.enableTimeWindow && (
               <div className="grid grid-cols-2 gap-4">
-                <div className="[&>:not(:first-child)]:mt-2">
+                <div className="space-y-2">
                   <Label htmlFor="syncWindowStart">Start</Label>
                   <Input
                     id="syncWindowStart"
@@ -526,7 +526,7 @@ export function Settings() {
                     onChange={(e) => updateSetting('syncWindowStart', e.target.value)}
                   />
                 </div>
-                <div className="[&>:not(:first-child)]:mt-2">
+                <div className="space-y-2">
                   <Label htmlFor="syncWindowEnd">End</Label>
                   <Input
                     id="syncWindowEnd"
@@ -555,8 +555,8 @@ export function Settings() {
         <div className={`overflow-hidden transition-all duration-200 ease-in-out ${
           showAdvanced ? 'max-h-[600px] opacity-100 mt-4 pt-4 border-t border-slate-100' : 'max-h-0 opacity-0'
         }`}>
-          <div className="[&>:not(:first-child)]:mt-4">
-            <div className="[&>:not(:first-child)]:mt-2">
+          <div className="space-y-4">
+            <div className="space-y-2">
               <Label htmlFor="sourceFileNamePattern">File Name Filter</Label>
               <Input
                 id="sourceFileNamePattern"
@@ -566,7 +566,7 @@ export function Settings() {
               />
               <p className="text-[10px] text-slate-400">Only sync files whose name matches this pattern (* matches anything).</p>
             </div>
-            <div className="[&>:not(:first-child)]:mt-2">
+            <div className="space-y-2">
               <Label htmlFor="exclusionPatterns">Exclude Files</Label>
               <textarea
                 id="exclusionPatterns"
@@ -578,7 +578,7 @@ export function Settings() {
               <p className="text-[10px] text-slate-400">Files matching any pattern will be skipped. One pattern per line.</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="[&>:not(:first-child)]:mt-2">
+              <div className="space-y-2">
                 <Label htmlFor="maxRetries">Max Retries</Label>
                 <Input
                   id="maxRetries"
@@ -587,7 +587,7 @@ export function Settings() {
                   onChange={(e) => updateSetting('maxRetries', parseInt(e.target.value, 10) || 3)}
                 />
               </div>
-              <div className="[&>:not(:first-child)]:mt-2">
+              <div className="space-y-2">
                 <Label htmlFor="historySize">History Size</Label>
                 <Input
                   id="historySize"
@@ -596,7 +596,7 @@ export function Settings() {
                   onChange={(e) => updateSetting('historySize', parseInt(e.target.value, 10) || 20)}
                 />
               </div>
-              <div className="[&>:not(:first-child)]:mt-2">
+              <div className="space-y-2">
                 <Label htmlFor="archiveThresholdChars">Archive Threshold (chars)</Label>
                 <Input
                   id="archiveThresholdChars"

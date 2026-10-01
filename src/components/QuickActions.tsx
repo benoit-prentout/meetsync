@@ -12,7 +12,7 @@ export function QuickActions() {
   const notConfigured = !settings?.masterDocId || !settings?.archiveFolderId;
   
   return (
-    <div className="w-80 p-4 [&>:not(:first-child)]:mt-4">
+    <div className="w-80 p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-bold">Quick Actions</h2>
         <Badge
@@ -33,7 +33,7 @@ export function QuickActions() {
         </div>
       )}
       
-      <div className="[&>:not(:first-child)]:mt-2">
+      <div className="space-y-2">
         <p className="text-sm text-muted-foreground">Last sync:</p>
         <p className="text-sm">
           {lastSync ? new Date(lastSync).toLocaleString() : 'Never'}

@@ -129,7 +129,7 @@ export function Analytics() {
   }));
 
   return (
-    <div className="[&>:not(:first-child)]:mt-3">
+    <div className="space-y-3">
       <div className="grid grid-cols-4 gap-3">
         <StatCard label="Total Syncs" value={String(r1.totalSyncs)} />
         <StatCard label="Files Processed" value={String(r1.totalFiles)} />
@@ -180,7 +180,7 @@ export function Analytics() {
                 }} />
             </div>
             {r2.growthRateKBPerDay > 0 && (
-              <div className="text-[11px] text-slate-500 [&>:not(:first-child)]:mt-0.5">
+              <div className="text-[11px] text-slate-500 space-y-0.5">
                 <p>+{r2.growthRateKBPerDay.toFixed(1)} KB/day</p>
                 {r2.daysToArchive !== null && <p>~{r2.daysToArchive}d until archive</p>}
               </div>

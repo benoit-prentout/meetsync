@@ -158,7 +158,7 @@ function OverviewPanel({ onSync, isLoading }: { onSync: () => Promise<void>; isL
         <CardHeader>
           <CardTitle>Status</CardTitle>
         </CardHeader>
-        <CardContent className="[&>:not(:first-child)]:mt-4">
+        <CardContent className="space-y-4">
           <div>
             <p className="text-sm text-muted-foreground">Last Sync</p>
             <p className="text-lg font-medium">
@@ -186,7 +186,7 @@ function OverviewPanel({ onSync, isLoading }: { onSync: () => Promise<void>; isL
         </CardHeader>
         <CardContent>
           {lastEvent ? (
-            <div className="[&>:not(:first-child)]:mt-2">
+            <div className="space-y-2">
               <p className="text-sm">{lastEvent.message}</p>
               <p className="text-xs text-muted-foreground">
                 {new Date(lastEvent.timestamp).toLocaleString()}

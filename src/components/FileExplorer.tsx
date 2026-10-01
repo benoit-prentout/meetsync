@@ -108,7 +108,7 @@ function FileRow({
       </div>
       {isExpanded && (
         <div
-          className={`border border-t-0 rounded-b-lg px-4 py-3 text-xs [&>:not(:first-child)]:mt-2 ${
+          className={`border border-t-0 rounded-b-lg px-4 py-3 text-xs space-y-2 ${
             isMaster ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-200'
           }`}
         >
@@ -207,7 +207,7 @@ export function FileExplorer() {
   }
 
   return (
-    <div className="[&>:not(:first-child)]:mt-3">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Total Files" value={String(enriched.length)} />
         <StatCard

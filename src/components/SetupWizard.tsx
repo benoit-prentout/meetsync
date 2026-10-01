@@ -104,11 +104,11 @@ export function SetupWizard() {
             <p className="text-[11px] text-slate-500 mt-0.5">Setup required</p>
           </div>
         </div>
-        <div className="px-5 py-4 [&>:not(:first-child)]:mt-4">
+        <div className="px-5 py-4 space-y-4">
           <p className="text-sm text-slate-500">
             Enter your Apps Script deployment URL to get started.
           </p>
-          <div className="[&>:not(:first-child)]:mt-2">
+          <div className="space-y-2">
             <Label htmlFor="deployment-url">Apps Script Deployment URL</Label>
             <Input
               id="deployment-url"
@@ -122,7 +122,7 @@ export function SetupWizard() {
               <p className="text-sm text-red-600">{urlError}</p>
             )}
           </div>
-          <div className="[&>:not(:first-child)]:mt-2">
+          <div className="space-y-2">
             <Label htmlFor="script-id">Script Project ID</Label>
             <p className="text-[11px] text-slate-400">Found in the Apps Script editor URL under your project name, after <code className="text-slate-500">/home/projects/</code>.</p>
             <Input

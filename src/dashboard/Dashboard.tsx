@@ -261,7 +261,7 @@ export function Dashboard({ onSignOut }: { onSignOut?: () => void }) {
                 <div className="bg-white border border-slate-200 rounded-lg p-4 min-h-[90px]">
                   <p className="text-xs font-semibold text-slate-900 mb-2">Recent Activity</p>
                   {lastEvent ? (
-                    <div className="[&>:not(:first-child)]:mt-0.5">
+                    <div className="space-y-0.5">
                       <p className="text-xs text-slate-600">{lastEvent.message}</p>
                       <p className="text-[10px] text-slate-400">
                         {new Date(lastEvent.timestamp).toLocaleString()}
