@@ -57,7 +57,7 @@ var SCRIPT_INTEGRITY = 'c3beafb40f9ea1c53be90da889b372016b38f24ccb6a2854d8d377b4
 
 function matchesPattern_(name, pattern) {
   if (!pattern) return true;
-  var regex = pattern.replace(/\*/g, '.*').replace(/\?/g, '.');
+  var regex = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
   return name.match(new RegExp('^' + regex + '$', 'i')) !== null;
 }
 
