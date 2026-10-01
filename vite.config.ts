@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { createHash } from 'crypto';
@@ -37,6 +38,7 @@ export default defineConfig({
   plugins: [
     backendChecksumPlugin(),
     react(),
+    tailwindcss(),
     {
       name: 'copy-manifest',
       closeBundle() {

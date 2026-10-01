@@ -4,7 +4,9 @@
  */
 
 const CONFIG = {
-  SOURCE_FOLDER_NAME: 'Meet Recordings',
+  // Optional folder whose docs are synced in addition to the name-matched notes.
+  // Empty by default: Meet now files notes in per-meeting sub-folders, so discovery is Drive-wide by name.
+  SOURCE_FOLDER_NAME: '',
   MAX_FILES_PER_RUN: 20,
   ENABLE_NOTIFICATIONS: true,
 
@@ -57,7 +59,7 @@ var SCRIPT_INTEGRITY = 'c3beafb40f9ea1c53be90da889b372016b38f24ccb6a2854d8d377b4
 
 function matchesPattern_(name, pattern) {
   if (!pattern) return true;
-  var regex = pattern.replace(/\*/g, '.*').replace(/\?/g, '.');
+  var regex = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
   return name.match(new RegExp('^' + regex + '$', 'i')) !== null;
 }
 
@@ -82,12 +84,20 @@ function isWithinTimeWindow_() {
   return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
 }
 
+// Cache key for a validated token: SHA-256 hex of the full token (never the raw token).
+function authCacheKey_(accessToken) {
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, accessToken);
+  return 'auth_' + bytes.map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); }).join('');
+}
+
 function validateCaller_(accessToken) {
   if (!accessToken) return false;
-  var cache = CacheService.getScriptCache();
-  var cached = cache.get('auth_' + accessToken.slice(0, 32));
-  if (cached === 'ok') return true;
   try {
+    var cacheKey = authCacheKey_(accessToken);
+    // Cache hiccups fall through to tokeninfo instead of failing auth.
+    try {
+      if (CacheService.getScriptCache().get(cacheKey) === 'ok') return true;
+    } catch (e) { Logger.log('validateCaller_: cache read failed: ' + (e && e.message)); }
     var resp = UrlFetchApp.fetch(
       'https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + encodeURIComponent(accessToken),
       { muteHttpExceptions: true }
@@ -95,29 +105,28 @@ function validateCaller_(accessToken) {
     if (resp.getResponseCode() !== 200) return false;
     var info = JSON.parse(resp.getContentText());
     if (!info.email) return false;
+    if ('email_verified' in info && String(info.email_verified) !== 'true') return false;
 
-    var props = PropertiesService.getScriptProperties();
-    var sessionEmail = '';
-    try { sessionEmail = Session.getActiveUser().getEmail() || ''; } catch (_) {}
-    var storedOwner = props.getProperty('OWNER_EMAIL') || '';
-
-    // First-run seeding: if no OWNER_EMAIL stored yet AND we have a sessionEmail, trust it once.
-    if (!storedOwner && sessionEmail) {
-      props.setProperty('OWNER_EMAIL', sessionEmail);
-      storedOwner = sessionEmail;
-    }
-    // First-run for personal accounts: if no OWNER_EMAIL AND sessionEmail empty,
-    // seed from tokeninfo. This trusts the first caller; acceptable because
-    // deploying as "Execute as: Me" already binds the script to one user.
-    if (!storedOwner && !sessionEmail) {
-      props.setProperty('OWNER_EMAIL', info.email);
-      storedOwner = info.email;
-      console.warn('validateCaller_: seeded OWNER_EMAIL from tokeninfo (personal account fallback): ' + info.email);
+    // Web app runs "Execute as: Me" with access "Anyone": getActiveUser() is the
+    // CALLER, so only the effective user (the deployer) identifies the owner.
+    // Extra callers (e.g. a Chrome account other than the deployer, or when the
+    // effective email is empty on some personal accounts) come from the manually
+    // set ALLOWED_CALLER_EMAIL script property (comma-separated). Never written
+    // here, and the old auto-seeded OWNER_EMAIL is not trusted: seeding let the
+    // first caller take ownership.
+    var norm = function (s) { return String(s).trim().toLowerCase(); };
+    var allowed = String(PropertiesService.getScriptProperties().getProperty('ALLOWED_CALLER_EMAIL') || '').split(',');
+    try { allowed.push(Session.getEffectiveUser().getEmail() || ''); } catch (_) {}
+    allowed = allowed.map(norm).filter(Boolean);
+    if (allowed.length === 0) {
+      Logger.log('validateCaller_: owner email unavailable. Set the ALLOWED_CALLER_EMAIL script property to your Google account email (Project Settings → Script Properties).');
+      return false;
     }
 
-    var ok = info.email === storedOwner || (sessionEmail && info.email === sessionEmail);
-    if (ok) {
-      cache.put('auth_' + accessToken.slice(0, 32), 'ok', 300);
+    if (allowed.indexOf(norm(info.email)) !== -1) {
+      try {
+        CacheService.getScriptCache().put(cacheKey, 'ok', 300);
+      } catch (e) { Logger.log('validateCaller_: cache write failed: ' + (e && e.message)); }
       return true;
     }
     return false;
@@ -206,7 +215,7 @@ function getDiagnostics() {
     diagnostics: {
       scriptIntegrity: SCRIPT_INTEGRITY,
       configOverrides: overrides,
-      ownerEmail: props.getProperty('OWNER_EMAIL') || null,
+      allowedCallerEmail: props.getProperty('ALLOWED_CALLER_EMAIL') || null,
       sessionUserEmpty: !sessionEmail,
       scriptTimezone: Session.getScriptTimeZone(),
       lastError: lastError,
@@ -238,7 +247,8 @@ function getSettings() {
     settings: {
       sourceFolderName: CONFIG.SOURCE_FOLDER_NAME,
       maxFilesPerRun: CONFIG.MAX_FILES_PER_RUN,
-      archiveThresholdChars: CONFIG.ARCHIVE_THRESHOLD_CHARS,
+      // Legacy saves above the current 900000 cap would fail validation on every re-save.
+      archiveThresholdChars: Math.min(CONFIG.ARCHIVE_THRESHOLD_CHARS, 900000),
       enableMonthlyArchive: CONFIG.ENABLE_MONTHLY_ARCHIVE,
       enableUpdateDetection: CONFIG.ENABLE_UPDATE_DETECTION,
       enableNotifications: CONFIG.ENABLE_NOTIFICATIONS,
@@ -289,7 +299,7 @@ function validateSettings_(settings) {
   });
   if ('maxFilesPerRun' in settings && (!isInt(settings.maxFilesPerRun) || settings.maxFilesPerRun < 1 || settings.maxFilesPerRun > 100)) push('maxFilesPerRun', 'must be integer 1–100');
   if ('maxAgeDays' in settings && (!isInt(settings.maxAgeDays) || settings.maxAgeDays < 0)) push('maxAgeDays', 'must be integer ≥ 0');
-  if ('archiveThresholdChars' in settings && (!isInt(settings.archiveThresholdChars) || settings.archiveThresholdChars < 0 || settings.archiveThresholdChars > 1000000)) push('archiveThresholdChars', 'must be integer 0–1000000');
+  if ('archiveThresholdChars' in settings && (!isInt(settings.archiveThresholdChars) || settings.archiveThresholdChars < 0 || settings.archiveThresholdChars > 900000)) push('archiveThresholdChars', 'must be integer 0–900000');
   if ('maxRetries' in settings && (!isInt(settings.maxRetries) || settings.maxRetries < 1 || settings.maxRetries > 10)) push('maxRetries', 'must be integer 1–10');
   if ('historySize' in settings && (!isInt(settings.historySize) || settings.historySize < 1 || settings.historySize > 200)) push('historySize', 'must be integer 1–200');
   ['enableMonthlyArchive','enableUpdateDetection','enableNotifications','enableTimeWindow'].forEach(function(k){
@@ -297,6 +307,9 @@ function validateSettings_(settings) {
   });
   ['sourceFolderName','archiveFolderId','masterDocId','sourceFileNamePattern','exclusionPatterns'].forEach(function(k){
     if (k in settings && !isStr(settings[k])) push(k, 'must be string');
+  });
+  ['archiveFolderId','masterDocId'].forEach(function(k){
+    if (isStr(settings[k]) && settings[k] !== '' && !/^[A-Za-z0-9_-]{10,}$/.test(settings[k])) push(k, 'must be a Drive ID (letters, digits, _ or -, 10+ chars)');
   });
   ['syncWindowStart','syncWindowEnd'].forEach(function(k){
     if (k in settings && !isHHMM(settings[k])) push(k, 'must be HH:MM (24h)');
@@ -369,32 +382,53 @@ function getFiles() {
   return { success: true, files: files };
 }
 
-function runSync() {
-  return logRun_('runSync', function() {
-    if (!isWithinTimeWindow_()) {
-      return { success: true, result: { synced: 0, updated: 0, errors: 0, message: 'Outside sync time window — skipped' } };
-    }
-    const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
-    const result = appendMeetNotesToMasterRestAPI(docId);
+// Script locks are not reentrant, so code already under the lock (logSyncRun_,
+// appendRunLog_ called from inside a sync) runs directly instead of waiting on itself.
+var holdsScriptLock_ = false;
 
-    return {
-      success: true,
-      result: result
-    };
+function withScriptLock_(waitMs, fn) {
+  if (holdsScriptLock_) return fn();
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(waitMs)) {
+    var err = new Error('Another sync or archive is already running');
+    err.code = 'BUSY';
+    throw err;
+  }
+  holdsScriptLock_ = true;
+  try {
+    return fn();
+  } finally {
+    holdsScriptLock_ = false;
+    try { lock.releaseLock(); } catch (_) {}
+  }
+}
+
+function runSync(lockWaitMs) {
+  return logRun_('runSync', function() {
+    return withScriptLock_(lockWaitMs == null ? 30000 : lockWaitMs, function() {
+      if (!isWithinTimeWindow_()) {
+        return { success: true, result: { synced: 0, updated: 0, errors: 0, message: 'Outside sync time window — skipped' } };
+      }
+      const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
+      const result = appendMeetNotesToMasterRestAPI(docId);
+
+      return {
+        success: true,
+        result: result
+      };
+    });
   });
 }
 
 function runArchive() {
   return logRun_('runArchive', function() {
-    const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
-    const timezone = Session.getScriptTimeZone() || 'UTC';
+    return withScriptLock_(30000, function() {
+      const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
+      const timezone = Session.getScriptTimeZone() || 'UTC';
 
-    checkAndArchive_(docId, timezone, true);
-
-    return {
-      success: true,
-      message: 'Archive created'
-    };
+      const r = checkAndArchive_(docId, timezone, true);
+      return r.archived ? { success: true, message: 'Archive created' } : { success: false, error: r.message };
+    });
   });
 }
 
@@ -404,9 +438,13 @@ function appendMeetNotesToMasterRestAPI(docId) {
   const timezone = Session.getScriptTimeZone() || 'UTC';
   const props = PropertiesService.getScriptProperties();
 
-  const folderId = getFolderIdByName_(CONFIG.SOURCE_FOLDER_NAME);
+  const DOC_MIME = 'application/vnd.google-apps.document';
+  const folderId = CONFIG.SOURCE_FOLDER_NAME ? getFolderIdByName_(CONFIG.SOURCE_FOLDER_NAME) : null;
 
-  let query = `mimeType = 'application/vnd.google-apps.document' and trashed = false`;
+  // Never import the master doc or its archive copies (named by checkAndArchive_): skipped in the
+  // loop below, not in the query, since Drive's word-based `contains` could drop real notes too.
+  const ARCHIVE_PREFIX = 'Meeting Notes Archive';
+  let query = `mimeType = '${DOC_MIME}' and trashed = false`;
   let folderQuery = folderId ? `'${folderId}' in parents` : '';
   let nameQuery = `(name contains 'Notes de la réunion' or name contains 'Meeting notes' or name contains 'Notes for' or name contains 'Notes by Gemini' or name contains 'Notes par Gemini')`;
 
@@ -421,63 +459,63 @@ function appendMeetNotesToMasterRestAPI(docId) {
     query += ` and modifiedTime > '${cutoff}'`;
   }
 
-  const result = apiCall_(() => Drive.Files.list({
+  const listParams = {
     q: query,
     pageSize: 100,
-    fields: 'files(id, name, createdTime, modifiedTime)',
+    fields: 'nextPageToken, files(id, name, mimeType, createdTime, modifiedTime)',
     orderBy: 'createdTime desc',
     supportsAllDrives: true,
     includeItemsFromAllDrives: true
-  }));
-
-  if (!result.files || result.files.length === 0) {
-    return { synced: 0, updated: 0, errors: 0, message: 'No meetings found' };
-  }
-
+  };
   const toProcess = [];
   const updatedIds = [];
+  let found = 0;
+  // One read for all markers; they are only written after the batch insert, so this snapshot stays valid.
+  const allProps = props.getProperties();
 
-  for (const file of result.files) {
-    if (CONFIG.SOURCE_FILE_NAME_PATTERN && !matchesPattern_(file.name, CONFIG.SOURCE_FILE_NAME_PATTERN)) {
-      continue;
-    }
-    if (CONFIG.EXCLUSION_PATTERNS && isExcluded_(file.name, CONFIG.EXCLUSION_PATTERNS)) {
-      continue;
-    }
-    const lastSyncTime = props.getProperty('SYNC_' + file.id);
-
-    if (!lastSyncTime) {
-      toProcess.push(file);
-    } else if (CONFIG.ENABLE_UPDATE_DETECTION) {
-      const modifiedDate = new Date(file.modifiedTime).getTime();
-      const syncDate = parseInt(lastSyncTime, 10);
-      const GRACE_MS = 5 * 60 * 1000;
-
-      if (modifiedDate > syncDate + GRACE_MS) {
-        toProcess.push(file);
-        updatedIds.push(file.id);
+  // ponytail: pages through all already-synced notes each run; add a modifiedTime cursor if Drive quota bites.
+  do {
+    const page = apiCall_(() => Drive.Files.list(listParams));
+    for (const file of page.files || []) {
+      // Shortcuts (attendee copies) are skipped: the real doc is listed itself.
+      if (file.mimeType !== DOC_MIME || file.id === docId || file.name.indexOf(ARCHIVE_PREFIX) === 0) continue;
+      found++;
+      if (CONFIG.SOURCE_FILE_NAME_PATTERN && !matchesPattern_(file.name, CONFIG.SOURCE_FILE_NAME_PATTERN)) {
+        continue;
       }
-    }
+      if (CONFIG.EXCLUSION_PATTERNS && isExcluded_(file.name, CONFIG.EXCLUSION_PATTERNS)) {
+        continue;
+      }
+      const lastSyncTime = allProps['SYNC_' + file.id];
 
-    if (toProcess.length >= CONFIG.MAX_FILES_PER_RUN) break;
+      if (!lastSyncTime) {
+        toProcess.push(file);
+      } else if (CONFIG.ENABLE_UPDATE_DETECTION) {
+        // Both sides are the file's own modifiedTime (stored at sync), so compare strictly.
+        if (new Date(file.modifiedTime).getTime() > parseInt(lastSyncTime, 10)) {
+          toProcess.push(file);
+          updatedIds.push(file.id);
+        }
+      }
+
+      if (toProcess.length >= CONFIG.MAX_FILES_PER_RUN) break;
+    }
+    listParams.pageToken = page.nextPageToken;
+  } while (listParams.pageToken && toProcess.length < CONFIG.MAX_FILES_PER_RUN);
+
+  if (found === 0) {
+    return { synced: 0, updated: 0, errors: 0, message: 'No meetings found' };
   }
 
   if (toProcess.length === 0) {
     return { synced: 0, updated: 0, errors: 0, message: 'All files are already synced' };
   }
 
-  if (CONFIG.ARCHIVE_THRESHOLD_CHARS > 0) {
-    try {
-      checkAndArchive_(docId, timezone);
-    } catch (e) {
-      console.error('Archive failed during sync (continuing sync run):', e && e.message || e);
-    }
-  }
-
   const filesToProcess = toProcess.reverse();
   const requests = [];
   const syncedEntries = [];
   const updatedNames = [];
+  const syncMarkers = {};
   let errorCount = 0;
 
   for (var i = 0; i < filesToProcess.length; i++) {
@@ -503,7 +541,7 @@ function appendMeetNotesToMasterRestAPI(docId) {
         },
       });
 
-      props.setProperty('SYNC_' + file.id, String(new Date(file.modifiedTime).getTime()));
+      syncMarkers['SYNC_' + file.id] = String(new Date(file.modifiedTime).getTime());
       syncedEntries.push({ name: file.name, date: dateStr });
 
     } catch (e) {
@@ -512,7 +550,15 @@ function appendMeetNotesToMasterRestAPI(docId) {
   }
 
   if (requests.length > 0) {
+    try {
+      // Size check includes the batch about to be inserted; no-op when size and monthly archive are both off.
+      checkAndArchive_(docId, timezone, false, requests.reduce((n, r) => n + r.insertText.text.length, 0));
+    } catch (e) {
+      console.error('Archive failed during sync (continuing sync run):', e && e.message || e);
+    }
     apiCall_(() => Docs.Documents.batchUpdate({ requests }, docId));
+    // Mark notes synced only once they are in the doc, so a failed write is retried next run.
+    props.setProperties(syncMarkers);
     updateDocSizeEstimate_(requests);
 
     try {
@@ -679,175 +725,24 @@ function showHelp() {
 // ─── MAIN SYNC LOGIC ──────────────────────────────────────────────────────────
 
 /**
- * Main function to find, clean, and append new meeting notes.
+ * Menu "Sync Now" and the 15-min trigger: runs the same sync as the REST API.
  */
-function appendMeetNotesToMaster() {
-  const startTime = Date.now();
-  var deadlineMs = startTime + (5 * 60 * 1000);
-  const docId = DocumentApp.getActiveDocument().getId();
-  const timezone = Session.getScriptTimeZone() || 'UTC';
-  const props = PropertiesService.getScriptProperties();
-
-  console.time('Total Sync');
-
-  // 1. Identify files to process
-  // Search in: 
-  // - Local "Meet Recordings" folder
-  // - OR shared files with specific naming conventions
-  const folderId = getFolderIdByName_(CONFIG.SOURCE_FOLDER_NAME);
-  
-  let query = `mimeType = 'application/vnd.google-apps.document' and trashed = false`;
-  let folderQuery = folderId ? `'${folderId}' in parents` : '';
-  let nameQuery = `(name contains 'Notes de la réunion' or name contains 'Meeting notes' or name contains 'Notes for' or name contains 'Notes by Gemini' or name contains 'Notes par Gemini')`;
-  
-  if (folderQuery) {
-    query += ` and (${folderQuery} or ${nameQuery})`;
-  } else {
-    query += ` and ${nameQuery}`;
-  }
-
-  if (CONFIG.MAX_AGE_DAYS > 0) {
-    const cutoff = new Date(Date.now() - CONFIG.MAX_AGE_DAYS * 86400000).toISOString();
-    query += ` and modifiedTime > '${cutoff}'`;
-  }
-
-  const result = apiCall_(() => Drive.Files.list({
-    q: query,
-    pageSize: 100, 
-    fields: 'files(id, name, createdTime, modifiedTime)',
-    orderBy: 'createdTime desc',
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true
-  }));
-
-  if (!result.files || result.files.length === 0) {
-    console.log('No meetings found.');
-    showAlert_('Everything is already up to date!');
+function appendMeetNotesToMaster(e) {
+  let r;
+  try {
+    // Time-driven triggers pass an event with triggerUid: skip fast if a sync is running.
+    r = runSync(e && e.triggerUid ? 1000 : 30000).result;
+  } catch (err) {
+    if (err.code !== 'BUSY') throw err;
+    showAlert_(`⏳ ${err.message}. Try again in a minute.`); // no-op in triggers (no UI)
     return;
   }
-
-  // 2. Filter already synced files (using PropertiesService)
-  const toProcess = [];
-  const updatedIds = [];
-  
-  for (const file of result.files) {
-    if (CONFIG.SOURCE_FILE_NAME_PATTERN && !matchesPattern_(file.name, CONFIG.SOURCE_FILE_NAME_PATTERN)) {
-      continue;
-    }
-    if (CONFIG.EXCLUSION_PATTERNS && isExcluded_(file.name, CONFIG.EXCLUSION_PATTERNS)) {
-      continue;
-    }
-    const lastSyncTime = props.getProperty('SYNC_' + file.id);
-    
-    if (!lastSyncTime) {
-      toProcess.push(file);
-    } else if (CONFIG.ENABLE_UPDATE_DETECTION) {
-      // Update detection: compare modification dates
-      const modifiedDate = new Date(file.modifiedTime).getTime();
-      const syncDate = parseInt(lastSyncTime, 10);
-      const GRACE_MS = 5 * 60 * 1000; // 5 min grace period
-      
-      if (modifiedDate > syncDate + GRACE_MS) {
-        toProcess.push(file);
-        updatedIds.push(file.id);
-      }
-    }
-    
-    if (toProcess.length >= CONFIG.MAX_FILES_PER_RUN) break;
-  }
-
-  if (toProcess.length === 0) {
-    console.log('All files are already synced.');
-    showAlert_('Everything is already up to date!');
+  if (r.message) {
+    showAlert_(r.message === 'Outside sync time window — skipped' ? r.message : 'Everything is already up to date!');
     return;
   }
-
-  // 3. Check for auto-archiving
-  if (CONFIG.ARCHIVE_THRESHOLD_CHARS > 0) {
-    try {
-      checkAndArchive_(docId, timezone);
-    } catch (e) {
-      console.error('Archive failed during sync (continuing sync run):', e && e.message || e);
-    }
-  }
-
-  // 4. Process files
-  const filesToProcess = toProcess.reverse();
-  const requests = [];
-  const syncedEntries = [];
-  const updatedNames = [];
-  let errorCount = 0;
-
-  for (var i = 0; i < filesToProcess.length; i++) {
-    if (Date.now() >= deadlineMs) {
-      console.warn('Deadline approaching — stopping at file ' + i + '/' + filesToProcess.length);
-      break;
-    }
-    var file = filesToProcess[i];
-    try {
-      console.log(`Processing: ${file.name}`);
-      const rawText = apiCallWithDeadline_(() => exportFileAsText_(file.id), deadlineMs);
-
-      const participants = extractParticipants_(rawText);
-      const cleanText = cleanGeminiText_(rawText);
-      const isUpdate = updatedIds.indexOf(file.id) !== -1;
-      if (isUpdate) updatedNames.push(file.name);
-      const dateStr = Utilities.formatDate(new Date(file.createdTime), timezone, 'yyyy-MM-dd');
-
-      const blockText = buildBlock_(file.name, dateStr, participants, cleanText, isUpdate);
-      
-      requests.push({
-        insertText: {
-          location: { index: 1 },
-          text: blockText,
-        },
-      });
-
-      // Store sync state locally (modification timestamp)
-      props.setProperty('SYNC_' + file.id, String(new Date(file.modifiedTime).getTime()));
-      syncedEntries.push({ name: file.name, date: dateStr });
-
-    } catch (e) {
-      errorCount++;
-      console.error(`Error on ${file.name}: ${e.message}\n${e.stack}`);
-    }
-  }
-
-  // 5. Batch update the document
-  if (requests.length > 0) {
-    apiCall_(() => Docs.Documents.batchUpdate({ requests }, docId));
-    updateDocSizeEstimate_(requests);
-    
-    try {
-      updateSummaryTable_(docId, syncedEntries);
-    } catch (e) {
-      console.error(`Summary table update failed: ${e.message}`);
-    }
-
-    if (CONFIG.ENABLE_NOTIFICATIONS) {
-      try {
-        sendNotification_(syncedEntries.map(e => e.name), updatedIds.map(id => id), errorCount, `https://docs.google.com/document/d/${docId}/edit`);
-      } catch (e) {
-        console.error(`Notification failed: ${e.message}`);
-      }
-    }
-
-    const duration = Date.now() - startTime;
-    console.timeEnd('Total Sync');
-    logSyncRun_({
-      date: new Date().toISOString(),
-      synced: syncedEntries.length,
-      updated: updatedIds.length,
-      errors: errorCount,
-      duration,
-      syncedNames: syncedEntries.map(e => e.name),
-      updatedNames
-    });
-    props.setProperty('lastSync', String(Date.now()));
-
-    const errorMsg = errorCount > 0 ? ` ⚠️ ${errorCount} error(s) — check Stackdriver logs.` : '';
-    showAlert_(`✅ ${syncedEntries.length} meeting(s) added.${errorMsg}`);
-  }
+  const errorMsg = r.errors > 0 ? ` ⚠️ ${r.errors} error(s) — check Stackdriver logs.` : '';
+  showAlert_(`✅ ${r.synced} meeting(s) added.${errorMsg}`);
 }
 
 // ─── ARCHIVING ────────────────────────────────────────────────────────────────
@@ -857,43 +752,73 @@ function appendMeetNotesToMaster() {
  */
 function forceArchive() {
   const ui = DocumentApp.getUi();
-  if (ui.alert('Archive', 'Copy this document to an archive and clear the current content?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
-  const docId = DocumentApp.getActiveDocument().getId();
+  if (ui.alert('Archive', 'Copy the master document to an archive and clear its content?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
   const timezone = Session.getScriptTimeZone() || 'UTC';
-  checkAndArchive_(docId, timezone, true);
-  showAlert_('✅ Archive created. The master document has been cleared.');
+  let r;
+  try {
+    r = withScriptLock_(30000, () => checkAndArchive_(docId, timezone, true));
+  } catch (err) {
+    if (err.code !== 'BUSY') throw err;
+    showAlert_(`⏳ ${err.message}. Try again in a minute.`);
+    return;
+  }
+  showAlert_(r.archived ? '✅ Archive created. The master document has been cleared.' : `ℹ️ ${r.message}.`);
 }
 
 /**
- * Checks document size and archives if threshold is reached.
+ * Real size of a doc: body end index minus the trailing newline (≈ characters, what Docs limits).
  */
-function checkAndArchive_(docId, timezone, force) {
+function getDocChars_(docId) {
+  const metaUrl = `https://docs.googleapis.com/v1/documents/${encodeURIComponent(docId)}?fields=body.content.endIndex`;
+  const metaResp = UrlFetchApp.fetch(metaUrl, {
+    headers: { Authorization: `Bearer ${ScriptApp.getOAuthToken()}` },
+  });
+  const content = JSON.parse(metaResp.getContentText()).body.content;
+  return content[content.length - 1].endIndex - 1;
+}
+
+/**
+ * Archives the doc at the start of a month, when it (plus `pendingChars` about to be
+ * inserted) reaches the size threshold, or always when `force`. Returns { archived, message? }.
+ */
+function checkAndArchive_(docId, timezone, force, pendingChars) {
   const props = PropertiesService.getScriptProperties();
-  const estimatedChars = parseInt(props.getProperty('estimatedChars') || '0', 10);
-  
-  // 1. Check for Monthly Archive
+  const threshold = CONFIG.ARCHIVE_THRESHOLD_CHARS;
+
+  // 1. Check for Monthly Archive. The first run only seeds the month; afterwards the month
+  // advances only once archived (markMonthDone_), so a failed archive is retried next run.
   let shouldArchive = false;
   let archiveReason = "";
-  
+  const currentMonth = Utilities.formatDate(new Date(), timezone, "yyyy-MM");
+  const markMonthDone_ = () => { if (CONFIG.ENABLE_MONTHLY_ARCHIVE) props.setProperty('lastArchiveMonth', currentMonth); };
+
   if (CONFIG.ENABLE_MONTHLY_ARCHIVE) {
-    const now = new Date();
-    const currentMonth = Utilities.formatDate(now, timezone, "yyyy-MM");
     const lastMonth = props.getProperty('lastArchiveMonth');
-    
-    if (lastMonth && lastMonth !== currentMonth) {
+    if (!lastMonth) {
+      markMonthDone_();
+    } else if (lastMonth !== currentMonth) {
       shouldArchive = true;
       archiveReason = `Start of new month (${currentMonth})`;
     }
-    props.setProperty('lastArchiveMonth', currentMonth);
   }
 
-  // 2. Check for Size Archive
-  if (!shouldArchive && CONFIG.ARCHIVE_THRESHOLD_CHARS > 0 && (force || estimatedChars >= CONFIG.ARCHIVE_THRESHOLD_CHARS)) {
+  if (!shouldArchive && !force && !(threshold > 0)) return { archived: false };
+
+  // 2. Check for Size Archive, on the real doc (the stored estimate drifts and is reset by "Reset Sync State").
+  const docChars = getDocChars_(docId);
+  props.setProperty('estimatedChars', String(docChars));
+  if (!shouldArchive && (force || docChars + (pendingChars || 0) >= threshold)) {
     shouldArchive = true;
-    archiveReason = `Size limit reached (~${estimatedChars} chars)`;
+    archiveReason = `${force ? 'Manual archive' : 'Size limit reached'} (~${docChars} chars)`;
   }
 
-  if (!shouldArchive) return;
+  if (!shouldArchive) return { archived: false };
+  // ponytail: fixed cutoff; the post-archive marker line is ~130 chars, a synced meeting block is longer.
+  if (docChars < 200) {
+    markMonthDone_();
+    return { archived: false, message: 'Nothing to archive: the master document is empty' };
+  }
 
   console.log(`📦 Archiving triggered. Reason: ${archiveReason}. Archiving...`);
 
@@ -918,14 +843,7 @@ function checkAndArchive_(docId, timezone, force) {
     // Mark the archive as synced locally
     props.setProperty('SYNC_' + copy.id, String(Date.now()));
 
-    const metaUrl = `https://docs.googleapis.com/v1/documents/${docId}?fields=body.content.endIndex`;
-    const metaResp = UrlFetchApp.fetch(metaUrl, {
-      headers: { Authorization: `Bearer ${ScriptApp.getOAuthToken()}` },
-    });
-    const metaData = JSON.parse(metaResp.getContentText());
-    const content = metaData.body.content;
-    const endIndex = content[content.length - 1].endIndex - 1;
-
+    const endIndex = docChars;
     const clearRequests = [];
     if (endIndex > 1) {
       clearRequests.push({ deleteContentRange: { range: { startIndex: 1, endIndex } } });
@@ -934,12 +852,13 @@ function checkAndArchive_(docId, timezone, force) {
       insertText: { location: { index: 1 }, text: `[Meeting Notes Archive — ${dateStr} → ${archiveUrl} ]\n\n` },
     });
     apiCall_(() => Docs.Documents.batchUpdate({ requests: clearRequests }, docId));
+    markMonthDone_();
 
     props.setProperty('estimatedChars', '0');
     var archiveHistory = JSON.parse(props.getProperty('archiveHistory') || '[]');
     archiveHistory.unshift({
       date: new Date().toISOString(),
-      sizeBefore: estimatedChars,
+      sizeBefore: docChars,
       reason: archiveReason
     });
     if (archiveHistory.length > 10) archiveHistory.length = 10;
@@ -962,7 +881,7 @@ function checkAndArchive_(docId, timezone, force) {
     } catch (e) {
       console.error(`Archive notification failed: ${e.message}`);
     }
-
+    return { archived: true };
   } catch (e) {
     console.error(`Archiving failed: ${e.message}`);
     throw e;
@@ -1033,25 +952,28 @@ function showSyncHistory() {
  * Logs a sync run to the internal history.
  */
 function logSyncRun_(run) {
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(2000)) {
-    console.warn('[logSyncRun_] could not acquire lock; dropping this entry to avoid race');
-    return;
-  }
   try {
-    try {
-      const props = PropertiesService.getScriptProperties();
-      run.docSize = parseInt(props.getProperty('estimatedChars') || '0', 10);
-      var parsed = JSON.parse(props.getProperty('syncHistory') || '[]');
-      var history = Array.isArray(parsed) ? parsed : [];
-      history.unshift(run);
-      if (history.length > CONFIG.HISTORY_SIZE) history.length = CONFIG.HISTORY_SIZE;
-      props.setProperty('syncHistory', JSON.stringify(history));
-    } catch (e) {
-      console.error(`logSyncRun_ failed: ${e.message}`);
-    }
-  } finally {
-    try { lock.releaseLock(); } catch (_) {}
+    withScriptLock_(2000, function() {
+      try {
+        const props = PropertiesService.getScriptProperties();
+        run.docSize = parseInt(props.getProperty('estimatedChars') || '0', 10);
+        // Full counts stay in synced/updated; only the name lists are capped.
+        const capNames = (names) => (names || []).slice(0, 20).map((n) => String(n).slice(0, 80));
+        run.syncedNames = capNames(run.syncedNames);
+        run.updatedNames = capNames(run.updatedNames);
+        var parsed = JSON.parse(props.getProperty('syncHistory') || '[]');
+        var history = Array.isArray(parsed) ? parsed : [];
+        history.unshift(run);
+        if (history.length > CONFIG.HISTORY_SIZE) history.length = CONFIG.HISTORY_SIZE;
+        props.setProperty('syncHistory', fitPropertyValue_(history, false));
+      } catch (e) {
+        console.error(`logSyncRun_ failed: ${e.message}`);
+      }
+    });
+  } catch (e) {
+    // Logging must never change a run's outcome.
+    if (e.code === 'BUSY') console.warn('[logSyncRun_] could not acquire lock; dropping this entry to avoid race');
+    else Logger.log('[logSyncRun_] failed: ' + (e && e.message));
   }
 }
 
@@ -1103,12 +1025,10 @@ function getFolderIdByName_(name) {
  * Extracts participant names from raw text.
  */
 function extractParticipants_(text) {
-  const match = text.match(/(?:Participants|Attendees|Présents)\s*:\s*([^\n]*)(\n(?!\n)[^\n]+)*/i);
-  if (!match) return null;
+  const block = findParticipantsBlock_(text.replace(/\r\n?/g, '\n'));
+  if (!block) return null;
 
-  const raw = match[0].replace(/(?:Participants|Attendees|Présents)\s*:\s*/i, '');
-
-  const entries = raw.split(/[\n,;]+/)
+  const entries = block.lines.join('\n').split(/[\n,;]+/)
     .map(s => s
       .replace(/<[^>]+>/g, '')
       .replace(/\([^)]*@[^)]*\)/g, '')
@@ -1121,12 +1041,54 @@ function extractParticipants_(text) {
   return entries.length > 0 ? entries.join(', ') : null;
 }
 
+// A line that starts with the label (optionally indented / wrapped in markdown such as **).
+var PARTICIPANTS_LABEL_RE_ = /^[ \t]*[*_#]*[ \t]*(?:Participants|Attendees|Présents)[ \t]*[*_]*[ \t]*:[*_]*[ \t]*(.*)$/im;
+
+// "Alice", "Jean-Pierre Dupont, Bob <bob@x.com>": every comma/semicolon item is 1-4 capitalised words.
+function isNameList_(s) {
+  var bare = s.replace(/<[^>]*>|\([^)]*@[^)]*\)|[\w.+-]+@[\w.-]+\.\w+/g, '');
+  return /\p{L}/u.test(bare) && bare.split(/[,;]/).every(function (item) {
+    item = item.trim();
+    return item === '' || /^\p{Lu}[\p{L}'’.-]*(?:[ \t]+\p{Lu}[\p{L}'’.-]*){0,3}$/u.test(item);
+  });
+}
+
+// Does `line` continue the attendee list after `prev`? When in doubt, no: the line stays in the note.
+function isParticipantContinuation_(line, prev) {
+  var t = line.trim();
+  var bullet = /^[-*•][ \t]+/.test(t);
+  var body = t.replace(/^[-*•][ \t]+/, '');
+  if (!body || !isNameList_(body)) return false;
+  return bullet || /[,;:]$/.test(prev.trim()) || /[,;]/.test(body);
+}
+
+// Locates the participants block in LF-normalised text: { start, end, lines } or null.
+function findParticipantsBlock_(text) {
+  var m = PARTICIPANTS_LABEL_RE_.exec(text);
+  if (!m) return null;
+  var lines = [m[1]];
+  var end = m.index + m[0].length;
+  var prev = m[1] || ':';
+  while (text.charAt(end) === '\n') {
+    var next = text.indexOf('\n', end + 1);
+    if (next === -1) next = text.length;
+    var line = text.slice(end + 1, next);
+    if (!isParticipantContinuation_(line, prev)) break;
+    lines.push(line);
+    prev = line;
+    end = next;
+  }
+  return { start: m.index, end: end, lines: lines };
+}
+
 /**
  * Cleans Gemini notes text by removing metadata and simplifying formatting.
  */
 function cleanGeminiText_(text) {
+  text = text.replace(/\r\n?/g, '\n');
+  var block = findParticipantsBlock_(text);
+  if (block) text = text.slice(0, block.start) + text.slice(block.end);
   return text
-    .replace(/(?:Participants|Attendees|Présents)\s*:.*?(?=\n\n|\n[A-Z]|$)/is, '')
     .replace(/Notes\s+(?:par|by|generated by)\s+Gemini[^\n]*/gi, '')
     .replace(/^#{1,6}\s*/gm, '')
     .replace(/\*\*(.*?)\*\*/g, '$1')
@@ -1187,24 +1149,34 @@ function exportFileAsText_(fileId) {
 }
 
 function appendRunLog_(entry) {
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(2000)) {
-    console.warn('[appendRunLog_] could not acquire lock; dropping this entry to avoid race');
-    return;
-  }
   try {
-    var props = PropertiesService.getScriptProperties();
-    var existing = [];
-    try {
-      var parsed = JSON.parse(props.getProperty('RUN_LOG') || '[]');
-      if (Array.isArray(parsed)) existing = parsed;
-    } catch (_) {}
-    existing.push(entry);
-    if (existing.length > 50) existing = existing.slice(existing.length - 50);
-    props.setProperty('RUN_LOG', JSON.stringify(existing));
-  } finally {
-    try { lock.releaseLock(); } catch (_) {}
+    withScriptLock_(2000, function() {
+      var props = PropertiesService.getScriptProperties();
+      var existing = [];
+      try {
+        var parsed = JSON.parse(props.getProperty('RUN_LOG') || '[]');
+        if (Array.isArray(parsed)) existing = parsed;
+      } catch (_) {}
+      existing.push(entry);
+      if (existing.length > 50) existing = existing.slice(existing.length - 50);
+      props.setProperty('RUN_LOG', fitPropertyValue_(existing, true));
+    });
+  } catch (e) {
+    // Logging must never change a run's outcome.
+    if (e.code === 'BUSY') console.warn('[appendRunLog_] could not acquire lock; dropping this entry to avoid race');
+    else Logger.log('[appendRunLog_] failed: ' + (e && e.message));
   }
+}
+
+// PropertiesService rejects values over 9 KB: drop the oldest entries until the JSON is <= 8500 UTF-8 bytes.
+function fitPropertyValue_(arr, oldestFirst) {
+  var json = JSON.stringify(arr);
+  // encodeURIComponent turns each non-ASCII byte into one %XX, so this counts UTF-8 bytes.
+  while (arr.length > 0 && encodeURIComponent(json).replace(/%[0-9A-F]{2}/g, '_').length > 8500) {
+    if (oldestFirst) arr.shift(); else arr.pop();
+    json = JSON.stringify(arr);
+  }
+  return json;
 }
 
 function logRun_(action, fn) {
@@ -1219,8 +1191,8 @@ function logRun_(action, fn) {
       finishedAt: new Date().toISOString(),
       action: action,
       ok: false,
-      error: String(e && e.message || e),
-      errorStack: String(e && e.stack || ''),
+      error: String(e && e.message || e).slice(0, 500),
+      errorStack: String(e && e.stack || '').slice(0, 500),
     });
     throw e;
   }

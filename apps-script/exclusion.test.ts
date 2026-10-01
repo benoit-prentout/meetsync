@@ -1,22 +1,10 @@
-// Mirrors apps-script/Code.gs:58-72 (functions matchesPattern_, isExcluded_).
-// If you change one, update the other — there is no shared module.
+// Runs the REAL apps-script/Code.gs (matchesPattern_, isExcluded_) via the loadCode harness.
 import { describe, it, expect } from 'vitest';
+import { loadCode } from './loadCode';
 
-function matchesPattern(name: string, pattern: string): boolean {
-  if (!pattern) return true;
-  const regex = pattern.replace(/\*/g, '.*').replace(/\?/g, '.');
-  return name.match(new RegExp('^' + regex + '$', 'i')) !== null;
-}
-
-function isExcluded(name: string, exclusionPatterns: string): boolean {
-  if (!exclusionPatterns) return false;
-  const patterns = exclusionPatterns.split('\n');
-  for (const raw of patterns) {
-    const p = raw.trim();
-    if (p && matchesPattern(name, p)) return true;
-  }
-  return false;
-}
+const gs = loadCode();
+const matchesPattern = (name: string, pattern: string): boolean => gs.matchesPattern_(name, pattern);
+const isExcluded = (name: string, patterns: string): boolean => gs.isExcluded_(name, patterns);
 
 describe('matchesPattern', () => {
   it('returns true for empty pattern (no filter)', () => {
@@ -34,6 +22,17 @@ describe('matchesPattern', () => {
   });
   it('anchors to full string (no partial match)', () => {
     expect(matchesPattern('prefix-meeting-suffix', 'meeting')).toBe(false);
+  });
+  it('treats regex metacharacters literally', () => {
+    expect(matchesPattern('Team standup', '[Private]*')).toBe(false);
+    expect(matchesPattern('[Private] 1:1', '[Private]*')).toBe(true);
+    expect(matchesPattern('v1x0', 'v1.0')).toBe(false);
+    expect(matchesPattern('a+b (c) $1 ^x {2} | \\', 'a+b (c) $1 ^x {2} | \\')).toBe(true);
+  });
+  it('does not throw on an unbalanced paren', () => {
+    expect(() => matchesPattern('Notes (draft', 'Notes (draft')).not.toThrow();
+    expect(matchesPattern('Notes (draft', 'Notes (draft')).toBe(true);
+    expect(isExcluded('Notes (draft) v2', 'Notes (draft*')).toBe(true);
   });
 });
 

@@ -47,15 +47,15 @@ export function Help() {
         <div className="space-y-3">
           <Step n={1}>
             Create (or open) a Google Doc that will serve as your <strong>Master Document</strong> — this is where all meeting notes get appended. Copy its ID from the URL:{' '}
-            <code className="bg-slate-100 px-1 rounded text-[10px]">docs.google.com/document/d/<strong>[ID]</strong>/edit</code>
+            <code className="bg-slate-100 px-1 rounded-sm text-[10px]">docs.google.com/document/d/<strong>[ID]</strong>/edit</code>
           </Step>
           <Step n={2}>
             Create a Google Drive folder for <strong>Archives</strong>. When the master doc gets large, old content is moved here automatically. Copy the folder ID from its URL:{' '}
-            <code className="bg-slate-100 px-1 rounded text-[10px]">drive.google.com/drive/folders/<strong>[ID]</strong></code>
+            <code className="bg-slate-100 px-1 rounded-sm text-[10px]">drive.google.com/drive/folders/<strong>[ID]</strong></code>
           </Step>
           <Step n={3}>
-            Deploy the <strong>Apps Script backend</strong>: open script.google.com, paste <code className="bg-slate-100 px-1 rounded text-[10px]">Code.gs</code>, deploy as a web app (<em>Execute as: Me</em>, <em>Who has access: Anyone</em>). Copy the deployment URL AND note the Script Project ID from the editor URL:{' '}
-            <code className="bg-slate-100 px-1 rounded text-[10px]">script.google.com/home/projects/<strong>[SCRIPT_ID]</strong>/edit</code>
+            Deploy the <strong>Apps Script backend</strong>: open script.google.com, paste <code className="bg-slate-100 px-1 rounded-sm text-[10px]">Code.gs</code>, deploy as a web app (<em>Execute as: Me</em>, <em>Who has access: Anyone</em>). Copy the deployment URL AND note the Script Project ID from the editor URL:{' '}
+            <code className="bg-slate-100 px-1 rounded-sm text-[10px]">script.google.com/home/projects/<strong>[SCRIPT_ID]</strong>/edit</code>
           </Step>
           <Step n={4}>
             Open the extension popup and complete the <strong>Setup Wizard</strong>: sign in, paste your deployment URL AND Script Project ID, click <strong>Save &amp; Connect</strong>. The wizard verifies the backend connection before completing.
@@ -212,7 +212,7 @@ export function Help() {
           </p>
           <ol className="space-y-1.5 list-decimal list-inside">
             <li>
-              Make sure your <strong>Script Project ID</strong> is set in the Apps Script Deployment section (find it in the editor URL: <code className="bg-slate-100 px-1 rounded text-[10px]">script.google.com/home/projects/<strong>[SCRIPT_ID]</strong>/edit</code>).
+              Make sure your <strong>Script Project ID</strong> is set in the Apps Script Deployment section (find it in the editor URL: <code className="bg-slate-100 px-1 rounded-sm text-[10px]">script.google.com/home/projects/<strong>[SCRIPT_ID]</strong>/edit</code>).
             </li>
             <li>
               Check the <strong>Backend Status</strong> indicator — it compares the deployed script hash against the version bundled in your extension.

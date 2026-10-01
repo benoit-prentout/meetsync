@@ -233,7 +233,7 @@ export function FileExplorer() {
               />
               <Tooltip
                 contentStyle={{ fontSize: 11, border: '1px solid #e2e8f0', borderRadius: 6 }}
-                formatter={(v: number) => [v, 'files']}
+                formatter={(v) => [v, 'files']}
               />
               <Bar dataKey="count" fill="#1a73e8" radius={[2, 2, 0, 0]} maxBarSize={14} />
             </BarChart>
@@ -251,13 +251,13 @@ export function FileExplorer() {
             placeholder="Search files..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
         <select
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
-          className="text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
         >
           <option value="lastSynced">Last Synced</option>
           <option value="name">Name</option>

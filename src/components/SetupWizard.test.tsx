@@ -90,6 +90,24 @@ describe('SetupWizard', () => {
     ).toBeInTheDocument();
   });
 
+  it.each([
+    'https://script.google.com/home/projects/abc/edit',
+    'https://script.google.com.evil.example/macros/s/x/exec',
+  ])('rejects non-exec URL %s with a validation error and disabled button', async (bad) => {
+    render(<SetupWizard />);
+    const { urlInput } = fillForm();
+    await userEvent.type(urlInput, bad);
+    expect(screen.getByText(/macros\/s\/.*\/exec/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save & connect/i })).toBeDisabled();
+  });
+
+  it('accepts a Workspace /a/macros/<domain>/ URL', async () => {
+    render(<SetupWizard />);
+    const { urlInput } = fillForm();
+    await userEvent.type(urlInput, 'https://script.google.com/a/macros/example.com/s/AKfy/exec');
+    expect(screen.queryByText(/must start with/i)).not.toBeInTheDocument();
+  });
+
   it('button is disabled when URL is invalid', async () => {
     render(<SetupWizard />);
     const { urlInput } = fillForm();

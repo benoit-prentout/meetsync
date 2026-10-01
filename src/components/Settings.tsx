@@ -8,8 +8,10 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useApi } from '@/hooks/useApi';
 import { extractDocId, extractFolderId } from '@/lib/googleIds';
 import { api } from '@/lib/api';
+import { isAppsScriptExecUrl } from '@/lib/deploymentUrl';
 import { EXPECTED_BACKEND_HASH } from '@/lib/backendChecksum';
 import { deployBackendUpdate } from '@/lib/deployApi';
+import { getDeployToken } from '@/lib/auth';
 import { BUNDLED_BACKEND_CODE, BUNDLED_MANIFEST } from '@/lib/bundledBackend';
 
 export function Settings() {
@@ -21,6 +23,7 @@ export function Settings() {
   const [autoSyncEnabled, setAutoSyncEnabledState] = useState(false);
   const [autoSyncInterval, setAutoSyncIntervalState] = useState(60);
   const [deploymentUrlInput, setDeploymentUrlInput] = useState('');
+  const [deploymentUrlError, setDeploymentUrlError] = useState<string | null>(null);
   const [scriptIdInput, setScriptIdInput] = useState('');
   const [docIdError, setDocIdError] = useState<string | null>(null);
   const [folderIdError, setFolderIdError] = useState<string | null>(null);
@@ -41,7 +44,9 @@ export function Settings() {
     setDeploying(true);
     setDeployMessage(null);
     try {
-      const result = await deployBackendUpdate(scriptId, deploymentUrl, BUNDLED_BACKEND_CODE, BUNDLED_MANIFEST, accessToken);
+      // accessToken is the narrow backend token; the Apps Script API needs the full-scope one
+      const deployToken = await getDeployToken(true);
+      const result = await deployBackendUpdate(scriptId, deploymentUrl, BUNDLED_BACKEND_CODE, BUNDLED_MANIFEST, deployToken);
       setDeployMessage({ type: 'success', text: `Deployed successfully (version ${result.versionNumber})` });
       setBackendStatus('up-to-date');
     } catch (err) {
@@ -131,6 +136,11 @@ export function Settings() {
   const handleSaveDeploymentUrl = () => {
     const trimmed = deploymentUrlInput.trim();
     if (!trimmed) return;
+    if (!isAppsScriptExecUrl(trimmed)) {
+      setDeploymentUrlError('URL must look like https://script.google.com/macros/s/<id>/exec');
+      return;
+    }
+    setDeploymentUrlError(null);
     chrome.storage.sync.set({ deploymentUrl: trimmed });
     setDeploymentUrl(trimmed);
     getSettings().catch(() => {});
@@ -148,7 +158,10 @@ export function Settings() {
             <Input
               id="deploymentUrl"
               value={deploymentUrlInput}
-              onChange={(e) => setDeploymentUrlInput(e.target.value)}
+              onChange={(e) => {
+                setDeploymentUrlInput(e.target.value);
+                if (deploymentUrlError) setDeploymentUrlError(null);
+              }}
               placeholder="https://script.google.com/macros/s/…/exec"
             />
             <Button
@@ -161,6 +174,9 @@ export function Settings() {
               Update
             </Button>
           </div>
+          {deploymentUrlError && (
+            <p className="text-[10px] text-red-500">{deploymentUrlError}</p>
+          )}
           {deploymentUrl && deploymentUrlInput.trim() === deploymentUrl && (
             <p className="text-[10px] text-slate-400 truncate">{deploymentUrl}</p>
           )}
@@ -297,7 +313,7 @@ export function Settings() {
           <div className="space-y-2">
             <Label htmlFor="masterDocId">Master Document ID</Label>
             <div className="flex items-center gap-2">
-              <div className="flex-1 flex items-center border border-input rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0">
+              <div className="flex-1 flex items-center border border-input rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/50 focus-within:ring-offset-0">
                 <span className="shrink-0 px-3 py-2 text-sm text-slate-400 bg-slate-50 border-r border-input select-none cursor-default whitespace-nowrap">
                   https://docs.google.com/document/d/
                 </span>
@@ -353,7 +369,7 @@ export function Settings() {
           <div className="space-y-2">
             <Label htmlFor="archiveFolderId">Archive Folder ID</Label>
             <div className="flex items-center gap-2">
-              <div className="flex-1 flex items-center border border-input rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0">
+              <div className="flex-1 flex items-center border border-input rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/50 focus-within:ring-offset-0">
                 <span className="shrink-0 px-3 py-2 text-sm text-slate-400 bg-slate-50 border-r border-input select-none cursor-default whitespace-nowrap">
                   https://drive.google.com/drive/folders/
                 </span>
@@ -423,7 +439,7 @@ export function Settings() {
         <p className="text-sm font-semibold text-slate-900 mb-3">Sync Settings</p>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <Label>Enable Update Detection</Label>
+            <Label className="!pt-0 !leading-none">Enable Update Detection</Label>
             <Switch
               checked={settings.enableUpdateDetection}
               onClick={() => updateSetting('enableUpdateDetection', !settings.enableUpdateDetection)}
@@ -440,7 +456,7 @@ export function Settings() {
             />
           </div>
           <div className="flex items-center justify-between">
-            <Label>Enable Monthly Archive</Label>
+            <Label className="!pt-0 !leading-none">Enable Monthly Archive</Label>
             <Switch
               checked={settings.enableMonthlyArchive}
               onClick={() => updateSetting('enableMonthlyArchive', !settings.enableMonthlyArchive)}
@@ -495,7 +511,7 @@ export function Settings() {
                 id="autoSyncInterval"
                 value={autoSyncInterval}
                 onChange={(e) => setAutoSyncInterval(Number(e.target.value))}
-                className="w-full text-xs border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#1a73e8]"
+                className="w-full text-xs border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-[#1a73e8]"
               >
                 <option value={15}>Every 15 minutes</option>
                 <option value={30}>Every 30 minutes</option>
@@ -570,7 +586,7 @@ export function Settings() {
               <Label htmlFor="exclusionPatterns">Exclude Files</Label>
               <textarea
                 id="exclusionPatterns"
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[80px] resize-y"
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500/50 min-h-[80px] resize-y"
                 value={settings.exclusionPatterns || ''}
                 onChange={(e) => updateSetting('exclusionPatterns', e.target.value)}
                 placeholder={'One pattern per line, e.g.\nDraft-*\n*-test\n2023-*'}

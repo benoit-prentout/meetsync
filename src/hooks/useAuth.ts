@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { api } from '@/lib/api';
+import { getBackendToken, clearCachedTokens } from '@/lib/auth';
 
 let reauthInFlight: Promise<string | null> | null = null;
 
@@ -12,27 +13,10 @@ export function useAuth() {
     setError(null);
 
     try {
-      // Clear any cached token to force re-auth with current manifest scopes
-      const oldToken = await new Promise<string | undefined>((resolve) => {
-        chrome.identity.getAuthToken({ interactive: false }, (token) => resolve(token));
-      });
-      if (oldToken) {
-        await new Promise<void>((resolve) => {
-          chrome.identity.removeCachedAuthToken({ token: oldToken }, () => resolve());
-        });
-      }
+      // Evict both cached tokens (backend + deploy) so a stale/401'd token is never reused
+      await clearCachedTokens();
 
-      const token = await new Promise<string>((resolve, reject) => {
-        chrome.identity.getAuthToken({ interactive: true }, (authToken) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-          } else if (authToken) {
-            resolve(authToken);
-          } else {
-            reject(new Error('No auth token received'));
-          }
-        });
-      });
+      const token = await getBackendToken(true);
       
       setAuthenticated(token);
       
@@ -55,18 +39,13 @@ export function useAuth() {
   }, [setAuthenticated, setLoading, setError]);
   
   const signOut = useCallback(async () => {
-    if (accessToken) {
-      try {
-        await new Promise<void>((resolve) => {
-          chrome.identity.removeCachedAuthToken({ token: accessToken }, () => resolve());
-        });
-      } catch {
-        // Ignore errors on sign out
-      }
+    try {
+      await clearCachedTokens();
+    } catch {
+      // Ignore errors on sign out
     }
-    
     useSettingsStore.getState().logout();
-  }, [accessToken]);
+  }, []);
   
   const reauth = useCallback(async (): Promise<string | null> => {
     if (reauthInFlight) return reauthInFlight;

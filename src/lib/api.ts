@@ -1,5 +1,6 @@
 import type { ApiResponse, StatusResponse, Settings, SyncEvent, SyncFile } from '@/types';
 import { mapStatusToCode, type ApiErrorCode } from './apiErrorCode';
+import { isAppsScriptExecUrl } from './deploymentUrl';
 
 export class ApiError extends Error {
   constructor(
@@ -25,15 +26,19 @@ async function getDeploymentUrl(): Promise<string> {
 async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {},
-  accessToken?: string
+  accessToken?: string,
+  timeoutMs = 90_000,
 ): Promise<T> {
   const base = await getDeploymentUrl();
-  let url: URL;
-  try {
-    url = new URL(base);
-  } catch {
-    throw new ApiError('Invalid deployment URL. Please check your setup settings.', undefined, 'BACKEND');
+  // Security: never send the token anywhere but an Apps Script web app URL.
+  if (!isAppsScriptExecUrl(base)) {
+    throw new ApiError(
+      'Invalid deployment URL. It must look like https://script.google.com/macros/s/<id>/exec — please check your setup settings.',
+      undefined,
+      'INVALID_DEPLOYMENT_URL',
+    );
   }
+  const url = new URL(base);
   url.searchParams.set('action', endpoint);
   // Apps Script web apps strip Authorization headers; token must be a query param
   if (accessToken) {
@@ -41,7 +46,6 @@ async function fetchApi<T>(
   }
 
   const controller = new AbortController();
-  const timeoutMs = 90_000;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   let response: Response;
   try {
@@ -105,15 +109,18 @@ async function fetchApi<T>(
   return data as T;
 }
 
+// Backend sync/archive may run up to 5 min, plus up to 30 s waiting for the script lock.
+const LONG_RUN_TIMEOUT_MS = 330_000;
+
 export const api = {
   getStatus: (accessToken: string) =>
     fetchApi<StatusResponse>('status', { method: 'GET' }, accessToken),
 
   sync: (accessToken: string) =>
-    fetchApi<{ result: unknown }>('sync', { method: 'POST' }, accessToken),
+    fetchApi<{ result: unknown }>('sync', { method: 'POST' }, accessToken, LONG_RUN_TIMEOUT_MS),
 
   archive: (accessToken: string) =>
-    fetchApi<{ result: unknown }>('archive', { method: 'POST' }, accessToken),
+    fetchApi<{ result: unknown }>('archive', { method: 'POST' }, accessToken, LONG_RUN_TIMEOUT_MS),
 
   getHistory: (accessToken: string) =>
     fetchApi<{ history: SyncEvent[] }>('history', { method: 'GET' }, accessToken),

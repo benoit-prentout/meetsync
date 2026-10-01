@@ -1,5 +1,6 @@
 import { api, ApiError } from '@/lib/api';
 import { pushAlarmOutcome } from '@/lib/alarmOutcomes';
+import { getBackendToken, clearCachedTokens } from '@/lib/auth';
 
 async function setupAlarm() {
   const { autoSyncEnabled, autoSyncIntervalMinutes } = await chrome.storage.sync.get([
@@ -24,15 +25,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   const startedAt = Date.now();
   let token: string;
   try {
-    token = await new Promise<string>((resolve, reject) => {
-      chrome.identity.getAuthToken({ interactive: false }, (t) => {
-        if (chrome.runtime.lastError || !t) {
-          reject(new Error(chrome.runtime.lastError?.message ?? 'No auth token'));
-        } else {
-          resolve(t as string);
-        }
-      });
-    });
+    token = await getBackendToken();
   } catch (e) {
     await pushAlarmOutcome({
       timestamp: new Date(startedAt).toISOString(),
@@ -55,9 +48,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     const message = e instanceof Error ? e.message : String(e);
     if (code === 'UNAUTHORIZED') {
       try {
-        await new Promise<void>((resolve) =>
-          chrome.identity.removeCachedAuthToken({ token }, () => resolve())
-        );
+        await clearCachedTokens();
       } catch { /* best-effort eviction */ }
     }
     await pushAlarmOutcome({

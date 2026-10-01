@@ -16,7 +16,7 @@ npm run dev                         # Vite dev server at localhost:5173
 npm run build                       # Build extension → dist/
 npm test                            # Run Vitest test suite
 npm run test:watch                  # Watch mode
-npm run package                     # Build + zip → meet-gemini-notebooklm.zip
+npm run package                     # Build + zip → meetsync.zip
 npx vitest run src/lib/api.test.ts  # Run a single test file
 npx vitest run -t "test name"       # Run tests matching a name pattern
 ```
@@ -42,7 +42,7 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 
 - `handleRequest(e)` is the single entry point for GET/POST.
 - Auth: token passed as `?token=<accessToken>` query param — **Apps Script strips `Authorization` headers**, so `fetchApi` in `api.ts` appends the token to the URL.
-- `validateCaller_(accessToken)` calls Google tokeninfo endpoint, compares email to `Session.getActiveUser().getEmail()`, caches 5 min via `CacheService`.
+- `validateCaller_(accessToken)` calls Google tokeninfo endpoint and authorises the deployer plus an optional allow-list: tokeninfo email (verified, trimmed, case-insensitive) must equal `Session.getEffectiveUser().getEmail()` or one of the comma-separated emails in the manually set `ALLOWED_CALLER_EMAIL` script property. Under "Execute as: Me" + "Anyone", `getActiveUser()` is the *caller*, so it is never used for auth. Successes are cached 5 min via `CacheService`, keyed on a SHA-256 of the full token.
 - `CONFIG_OVERRIDES` loaded from `PropertiesService` on startup via IIFE; `updateSettings` persists changes there.
 - `SETTINGS_KEY_MAP_` maps camelCase frontend keys ↔ SCREAMING_SNAKE_CASE `CONFIG` keys.
 - POST detection uses `e.postData` (not `e.method === 'POST'` — that field doesn't exist in Apps Script).
@@ -52,7 +52,7 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 ### Chrome Extension
 
 - **Path alias**: `@` maps to `src/` — used throughout the codebase (`import { api } from '@/lib/api'`).
-- **Auth**: `chrome.identity.getAuthToken` with scopes from `manifest.json` (`openid`, `email`, `script.projects`, `script.deployments` — the latter two for backend auto-deploy). The extension token is used solely to verify identity in `validateCaller_`; Apps Script uses `ScriptApp.getOAuthToken()` for Drive/Docs.
+- **Auth**: two tokens, both obtained only via `src/lib/auth.ts`: `getBackendToken()` (`openid email` scope override; held in Zustand `accessToken` and sent as `?token=` to the web app, where `validateCaller_` only verifies identity) and `getDeployToken()` (full `manifest.json` scopes incl. `script.projects`/`script.deployments`; used only by `deployApi.ts` → `script.googleapis.com`). `clearCachedTokens()` evicts both on sign-in, sign-out and 401; Apps Script itself uses `ScriptApp.getOAuthToken()` for Drive/Docs.
 - **Config**: `deploymentUrl` is the source of truth in `chrome.storage.sync`. It is mirrored into Zustand by `App.tsx` on mount but is **not persisted** by the store's `partialize` — `chrome.storage.sync` is always the authoritative copy. `api.ts` reads it directly from storage via `getDeploymentUrl()`.
 - **Auto-sync** is driven by `src/background.ts` (MV3 service worker) via `chrome.alarms`. It reads `autoSyncEnabled` and `autoSyncIntervalMinutes` from `chrome.storage.sync` directly (no Zustand access from the service worker). Settings changes trigger `chrome.storage.onChanged` to reconfigure the alarm.
 - **State layer**: `useSettingsStore` (Zustand + `persist`) holds runtime UI state. `useApi` hook wraps `api.ts` calls and writes results into the store. `useAuth` manages the `chrome.identity` token lifecycle.
@@ -70,8 +70,8 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 
 | Function | Purpose |
 |---|---|
-| `appendMeetNotesToMaster()` | Main sync: discovers, filters, cleans, and batch-inserts meeting notes |
-| `checkAndArchive_(docId, tz, force)` | Triggers monthly or at ~800k chars; `force=true` skips threshold check |
+| `appendMeetNotesToMaster()` | Thin menu "Sync Now" / 15-min trigger wrapper around `runSync()`, which runs the REST sync (`appendMeetNotesToMasterRestAPI`: discovers, filters, cleans, and batch-inserts meeting notes) |
+| `checkAndArchive_(docId, tz, force, pendingChars)` | Archives monthly, or when the real doc size + pending batch reaches `ARCHIVE_THRESHOLD_CHARS`; `force=true` archives regardless of the threshold (even 0). Returns `{archived, message?}`; a near-empty doc is "Nothing to archive" |
 | `cleanGeminiText_()` | Strips Gemini metadata, markdown headers/bold, and excess whitespace |
 | `CONFIG` (top of file) | Controls `MAX_FILES_PER_RUN`, `ARCHIVE_THRESHOLD_CHARS`, `ENABLE_MONTHLY_ARCHIVE`, `MAX_AGE_DAYS` |
 
@@ -114,12 +114,13 @@ npm test   # runs vitest (jsdom, globals: true)
 - `tsconfig.json` excludes test files from tsc build — required to avoid "Cannot find name 'vi'" errors.
 - `src/test/setup.ts` mocks `chrome.storage.sync`, `chrome.identity`, `chrome.runtime`, `chrome.tabs`.
 - `vi` must be imported explicitly in setup.ts (`import { vi } from 'vitest'`) even with `globals: true`.
+- Backend tests run the REAL `apps-script/Code.gs` via `loadCode()` in `apps-script/loadCode.ts` (node:vm sandbox with stubbed PropertiesService, CacheService, Session, UrlFetchApp, Utilities, LockService). Pass Drive/Docs/DocumentApp/MailApp etc. through its `globals` option; its property store enforces the 9 KB per-value limit like Apps Script.
 
 ## Known Gotchas
 
 - `dist/` is gitignored — build artifacts are not committed.
 - `Drive.Files.get` returns `size: "0"` for Google Docs (not binary files) — `getFiles()` treats this as `0`.
-- `Session.getActiveUser().getEmail()` returns empty for some personal accounts. `validateCaller_` falls back to a stored `OWNER_EMAIL` script property: it is seeded on first successful auth from `tokeninfo.email`. To reset (e.g. after binding to a new user), delete the `OWNER_EMAIL` property in the Apps Script editor → Project Settings → Script Properties.
+- **Chrome's signed-in account must be the deploying account**, unless you add it to the `ALLOWED_CALLER_EMAIL` script property (comma-separated list) by hand in the Apps Script editor → Project Settings → Script Properties. The same property is the fallback when `Session.getEffectiveUser().getEmail()` returns empty (some personal accounts); with neither, every request is rejected as Unauthorized and the execution log says to set it. The backend never writes it. The old auto-seeded `OWNER_EMAIL` property is **no longer read** (seeding let the first caller take ownership): existing installs that relied on it must set `ALLOWED_CALLER_EMAIL` if their Chrome account differs from the deployer (and may delete `OWNER_EMAIL`).
 - Email notifications via `MailApp` silently fail when quota is exceeded or on personal accounts.
 - Archive email failure is caught and logged but does not abort the archive.
 - **shadcn/ui CSS variables ARE defined** in `src/index.css` (`--primary`, `--input`, `--background`, `--ring`, etc.). They can be used directly.

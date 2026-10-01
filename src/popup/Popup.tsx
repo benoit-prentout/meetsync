@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Github, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
+import { GithubIcon } from '@/components/ui/GithubIcon';
 import { useAuth } from '@/hooks/useAuth';
 import { useApi } from '@/hooks/useApi';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatLastSync } from '@/lib/format';
 import { MeetSyncMark } from '@/components/Brand';
+import { getBackendToken } from '@/lib/auth';
 
 function openDashboardTab() {
   chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
@@ -18,12 +20,9 @@ export function Popup() {
   const { lastSync, docSize, files, history, isLoading, settings, setAuthenticated } = useSettingsStore();
 
   useEffect(() => {
-    chrome.identity.getAuthToken({ interactive: false }, (token) => {
-      if (!chrome.runtime.lastError && token) {
-        setAuthenticated(token);
-      }
-      setAuthChecking(false);
-    });
+    getBackendToken()
+      .then(setAuthenticated, () => {})
+      .finally(() => setAuthChecking(false));
   }, [setAuthenticated]);
 
   if (authChecking) {
@@ -76,7 +75,7 @@ export function Popup() {
     <div className="w-60 bg-white overflow-hidden">
       {/* Header */}
       <div className="bg-[#1a73e8] px-4 py-3 flex items-center gap-2">
-        <div className="w-5 h-5 rounded bg-white/20 flex items-center justify-center">
+        <div className="w-5 h-5 rounded-sm bg-white/20 flex items-center justify-center">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="white" aria-hidden="true">
             <path d="M15 8v8H5V8h10m1-2H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4V7c0-.55-.45-1-1-1z" />
           </svg>
@@ -150,7 +149,7 @@ export function Popup() {
           onClick={() => chrome.tabs.create({ url: 'https://github.com/benoit-prentout/meetsync' })}
           className="text-[9px] text-slate-400 hover:text-slate-600 transition-colors cursor-pointer flex items-center gap-1"
         >
-          <Github className="w-2.5 h-2.5" />
+          <GithubIcon className="w-2.5 h-2.5" />
           Star
         </button>
         <button onClick={signOut} className="text-[9px] text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">

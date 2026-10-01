@@ -39,6 +39,15 @@ describe('Popup', () => {
     );
   });
 
+  it('restores auth silently with the narrow backend token', async () => {
+    render(<Popup />);
+    await screen.findByRole('button', { name: /connect google account/i });
+    expect(chrome.identity.getAuthToken).toHaveBeenCalledWith(
+      { interactive: false, scopes: ['openid', 'email'] },
+      expect.any(Function),
+    );
+  });
+
   it('shows Connect Google Account when not authenticated', async () => {
     render(<Popup />);
     expect(
@@ -55,7 +64,7 @@ describe('Popup', () => {
       signOut: vi.fn(),
     });
     render(<Popup />);
-    await userEvent.click(screen.getByRole('button', { name: /connect google account/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /connect google account/i }));
     expect(signIn).toHaveBeenCalled();
   });
 

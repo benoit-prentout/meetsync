@@ -75,6 +75,22 @@ describe('api - getDeploymentUrl / fetchApi', () => {
     await expect(api2.getStatus('test-token')).rejects.toThrow('Invalid deployment URL');
   });
 
+  it.each([
+    'https://evil.example/macros/s/x/exec',
+    'https://script.google.com.evil.example/macros/s/x/exec',
+    'http://script.google.com/macros/s/x/exec',
+    'https://script.google.com/home/projects/x/edit',
+  ])('rejects non-Apps-Script deployment URL %s without sending the token', async (deploymentUrl) => {
+    (chrome.storage.sync.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ deploymentUrl });
+    globalThis.fetch = vi.fn();
+    const { ApiError, api } = await import('@/lib/api');
+    const err = await api.getStatus('secret-token').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as InstanceType<typeof ApiError>).code).toBe('INVALID_DEPLOYMENT_URL');
+    expect((err as Error).message).toMatch(/Invalid deployment URL/);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('throws ApiError when the HTTP response is not ok', async () => {
     (chrome.storage.sync.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       deploymentUrl: 'https://script.google.com/macros/s/test/exec',
@@ -250,5 +266,46 @@ describe('api - status response passthrough', () => {
     const { api } = await import('@/lib/api');
     const result = await api.getStatus('test-token');
     expect((result as typeof responseData).backendIntegrity).toBe('abc123def456');
+  });
+});
+
+describe('fetchApi timeouts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    (chrome.storage.sync.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      deploymentUrl: 'https://script.google.com/macros/s/AKfycb/exec',
+    });
+    // Never resolves; rejects with AbortError when the request is aborted.
+    globalThis.fetch = vi.fn((_url: string, init: RequestInit) => new Promise((_, reject) => {
+      init.signal!.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    })) as any;
+  });
+
+  async function abortAfter(call: (api: typeof import('./api').api) => Promise<unknown>) {
+    vi.useFakeTimers();
+    try {
+      const { api } = await import('@/lib/api');
+      let settled = false;
+      const p = call(api).catch((e) => e).finally(() => { settled = true; });
+      await vi.advanceTimersByTimeAsync(90_001);
+      const after90 = settled;
+      await vi.advanceTimersByTimeAsync(330_000);
+      return { after90, err: await p };
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+
+  it.each(['sync', 'archive'] as const)('%s waits up to 330s (backend runs up to 5 min)', async (action) => {
+    const { after90, err } = await abortAfter((api) => api[action]('t'));
+    expect(after90).toBe(false);
+    expect(err).toMatchObject({ code: 'TIMEOUT', message: 'Request timed out after 330s' });
+  });
+
+  it('other calls keep the 90s timeout', async () => {
+    const { after90, err } = await abortAfter((api) => api.getStatus('t'));
+    expect(after90).toBe(true);
+    expect(err).toMatchObject({ code: 'TIMEOUT', message: 'Request timed out after 90s' });
   });
 });

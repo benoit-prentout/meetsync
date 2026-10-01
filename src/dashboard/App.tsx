@@ -4,6 +4,7 @@ import { SetupWizard } from '@/components/SetupWizard';
 import { useAuth } from '@/hooks/useAuth';
 import { useApi } from '@/hooks/useApi';
 import { useSettingsStore } from '@/store/settingsStore';
+import { getBackendToken } from '@/lib/auth';
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -34,10 +35,7 @@ function App() {
   // Skipped when the user explicitly signed out to prevent immediate re-auth.
   useEffect(() => {
     if (isAuthenticated || signedOutRef.current) return;
-    chrome.identity.getAuthToken({ interactive: false }, (token) => {
-      if (chrome.runtime.lastError || !token) return;
-      setAuthenticated(token);
-    });
+    getBackendToken().then(setAuthenticated, () => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 

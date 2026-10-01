@@ -2,7 +2,7 @@
 
 ## Two-Layer Architecture
 
-- **Chrome MV3 extension** (`src/`): React 18 + TypeScript + Vite + Tailwind CSS + Zustand — built with `npm run build`, output to `dist/`.
+- **Chrome MV3 extension** (`src/`): React 19 + TypeScript + Vite + Tailwind CSS 4 + Zustand — built with `npm run build`, output to `dist/`.
 - **Apps Script backend** (`apps-script/Code.gs`): ~1080 lines of Google Apps Script, deployed manually by copy-paste into the Apps Script editor.
 - `CLAUDE.md` has the authoritative detailed reference — this file captures only what's easy to miss.
 
@@ -20,7 +20,7 @@ This builds the extension, zips it, and creates a GitHub Release with the zip at
 npm run dev       # Vite dev server at localhost:5173 (chrome APIs mocked via dev-mocks.ts)
 npm run build     # tsc + vite build → dist/
 npm test          # vitest run (jsdom, globals: true)
-npm run package   # build + zip → meet-gemini-notebooklm.zip
+npm run package   # build + zip → meetsync.zip
 npm run test:watch
 npx vitest run -t "test name"   # single test by name
 ```
@@ -38,7 +38,7 @@ Four dev entry points bypass `chrome-extension://` restrictions:
 
 Mocks live in `src/dev-mocks.ts` — stubs chrome.storage, identity, tabs, runtime and seeds Zustand with fake data. Tree-shaken from production builds.
 
-**Apps Script test files** (`apps-script/*.test.ts`) replicate backend transform logic in TypeScript for Vitest — they are NOT runnable in Apps Script. Keep them in sync when changing Code.gs.
+**Apps Script test files** (`apps-script/*.test.ts`) load the real `Code.gs` into a node:vm sandbox via `apps-script/loadCode.ts` with stubbed Apps Script globals. Prefer this harness over hand-copied functions; a few older tests still mirror logic and must be kept in sync.
 
 ## Apps Script Deployment
 

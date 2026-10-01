@@ -8,7 +8,6 @@ import {
   Settings as SettingsIcon,
   ExternalLink,
   HelpCircle,
-  Github,
 } from 'lucide-react';
 import { History } from '@/components/History';
 import { Analytics } from '@/components/Analytics';
@@ -17,6 +16,7 @@ import { FileExplorer } from '@/components/FileExplorer';
 import { Notifications } from '@/components/Notifications';
 import { MeetSyncMark } from '@/components/Brand';
 import { Help } from '@/components/Help';
+import { GithubIcon } from '@/components/ui/GithubIcon';
 import { useAuth } from '@/hooks/useAuth';
 import { useApi } from '@/hooks/useApi';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -129,7 +129,7 @@ export function Dashboard({ onSignOut }: { onSignOut?: () => void }) {
               onClick={() => chrome.tabs.create({ url: 'https://github.com/benoit-prentout/meetsync' })}
               className="flex items-center gap-1.5 text-[10px] text-slate-400 hover:text-slate-600 transition-colors cursor-pointer w-full"
             >
-              <Github className="w-3 h-3" />
+              <GithubIcon className="w-3 h-3" />
               Star on GitHub
             </button>
             <p className="text-[9px] text-slate-400 mt-1 leading-relaxed">

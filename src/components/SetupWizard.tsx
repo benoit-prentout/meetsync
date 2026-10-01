@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Github } from 'lucide-react';
+import { GithubIcon } from '@/components/ui/GithubIcon';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettingsStore } from '@/store/settingsStore';
 import { api } from '@/lib/api';
+import { isAppsScriptExecUrl } from '@/lib/deploymentUrl';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MeetSyncMark } from '@/components/Brand';
@@ -20,8 +21,8 @@ export function SetupWizard() {
   function validateUrl(value: string): string | null {
     const trimmed = value.trim();
     if (!trimmed) return 'Deployment URL is required';
-    if (!trimmed.startsWith('https://script.google.com/')) {
-      return 'URL must start with https://script.google.com/';
+    if (!isAppsScriptExecUrl(trimmed)) {
+      return 'URL must start with https://script.google.com/ and look like …/macros/s/<id>/exec';
     }
     return null;
   }
@@ -96,7 +97,7 @@ export function SetupWizard() {
 
   return (
     <div className="p-4 w-96">
-      <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-lg shadow-xs">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
           <MeetSyncMark size={28} />
           <div>
@@ -166,7 +167,7 @@ export function SetupWizard() {
           onClick={() => chrome.tabs.create({ url: 'https://github.com/benoit-prentout/meetsync' })}
           className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
         >
-          <Github className="w-3 h-3" />
+          <GithubIcon className="w-3 h-3" />
           Star on GitHub
         </button>
       </div>
