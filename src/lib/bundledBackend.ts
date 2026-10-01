@@ -293,7 +293,7 @@ function validateSettings_(settings) {
   });
   if ('maxFilesPerRun' in settings && (!isInt(settings.maxFilesPerRun) || settings.maxFilesPerRun < 1 || settings.maxFilesPerRun > 100)) push('maxFilesPerRun', 'must be integer 1–100');
   if ('maxAgeDays' in settings && (!isInt(settings.maxAgeDays) || settings.maxAgeDays < 0)) push('maxAgeDays', 'must be integer ≥ 0');
-  if ('archiveThresholdChars' in settings && (!isInt(settings.archiveThresholdChars) || settings.archiveThresholdChars < 0 || settings.archiveThresholdChars > 1000000)) push('archiveThresholdChars', 'must be integer 0–1000000');
+  if ('archiveThresholdChars' in settings && (!isInt(settings.archiveThresholdChars) || settings.archiveThresholdChars < 0 || settings.archiveThresholdChars > 900000)) push('archiveThresholdChars', 'must be integer 0–900000');
   if ('maxRetries' in settings && (!isInt(settings.maxRetries) || settings.maxRetries < 1 || settings.maxRetries > 10)) push('maxRetries', 'must be integer 1–10');
   if ('historySize' in settings && (!isInt(settings.historySize) || settings.historySize < 1 || settings.historySize > 200)) push('historySize', 'must be integer 1–200');
   ['enableMonthlyArchive','enableUpdateDetection','enableNotifications','enableTimeWindow'].forEach(function(k){
@@ -420,12 +420,8 @@ function runArchive() {
       const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
       const timezone = Session.getScriptTimeZone() || 'UTC';
 
-      checkAndArchive_(docId, timezone, true);
-
-      return {
-        success: true,
-        message: 'Archive created'
-      };
+      const r = checkAndArchive_(docId, timezone, true);
+      return r.archived ? { success: true, message: 'Archive created' } : { success: false, error: r.message };
     });
   });
 }
@@ -506,14 +502,6 @@ function appendMeetNotesToMasterRestAPI(docId) {
     return { synced: 0, updated: 0, errors: 0, message: 'All files are already synced' };
   }
 
-  if (CONFIG.ARCHIVE_THRESHOLD_CHARS > 0) {
-    try {
-      checkAndArchive_(docId, timezone);
-    } catch (e) {
-      console.error('Archive failed during sync (continuing sync run):', e && e.message || e);
-    }
-  }
-
   const filesToProcess = toProcess.reverse();
   const requests = [];
   const syncedEntries = [];
@@ -553,6 +541,12 @@ function appendMeetNotesToMasterRestAPI(docId) {
   }
 
   if (requests.length > 0) {
+    try {
+      // Size check includes the batch about to be inserted; no-op when size and monthly archive are both off.
+      checkAndArchive_(docId, timezone, false, requests.reduce((n, r) => n + r.insertText.text.length, 0));
+    } catch (e) {
+      console.error('Archive failed during sync (continuing sync run):', e && e.message || e);
+    }
     apiCall_(() => Docs.Documents.batchUpdate({ requests }, docId));
     // Mark notes synced only once they are in the doc, so a failed write is retried next run.
     props.setProperties(syncMarkers);
@@ -749,49 +743,73 @@ function appendMeetNotesToMaster(e) {
  */
 function forceArchive() {
   const ui = DocumentApp.getUi();
-  if (ui.alert('Archive', 'Copy this document to an archive and clear the current content?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
-  const docId = DocumentApp.getActiveDocument().getId();
+  if (ui.alert('Archive', 'Copy the master document to an archive and clear its content?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  const docId = CONFIG.MASTER_DOC_ID || DocumentApp.getActiveDocument().getId();
   const timezone = Session.getScriptTimeZone() || 'UTC';
+  let r;
   try {
-    withScriptLock_(30000, () => checkAndArchive_(docId, timezone, true));
+    r = withScriptLock_(30000, () => checkAndArchive_(docId, timezone, true));
   } catch (err) {
     if (err.code !== 'BUSY') throw err;
     showAlert_(\`⏳ \${err.message}. Try again in a minute.\`);
     return;
   }
-  showAlert_('✅ Archive created. The master document has been cleared.');
+  showAlert_(r.archived ? '✅ Archive created. The master document has been cleared.' : \`ℹ️ \${r.message}.\`);
 }
 
 /**
- * Checks document size and archives if threshold is reached.
+ * Real size of a doc: body end index minus the trailing newline (≈ characters, what Docs limits).
  */
-function checkAndArchive_(docId, timezone, force) {
+function getDocChars_(docId) {
+  const metaUrl = \`https://docs.googleapis.com/v1/documents/\${encodeURIComponent(docId)}?fields=body.content.endIndex\`;
+  const metaResp = UrlFetchApp.fetch(metaUrl, {
+    headers: { Authorization: \`Bearer \${ScriptApp.getOAuthToken()}\` },
+  });
+  const content = JSON.parse(metaResp.getContentText()).body.content;
+  return content[content.length - 1].endIndex - 1;
+}
+
+/**
+ * Archives the doc at the start of a month, when it (plus \`pendingChars\` about to be
+ * inserted) reaches the size threshold, or always when \`force\`. Returns { archived, message? }.
+ */
+function checkAndArchive_(docId, timezone, force, pendingChars) {
   const props = PropertiesService.getScriptProperties();
-  const estimatedChars = parseInt(props.getProperty('estimatedChars') || '0', 10);
-  
-  // 1. Check for Monthly Archive
+  const threshold = CONFIG.ARCHIVE_THRESHOLD_CHARS;
+
+  // 1. Check for Monthly Archive. The first run only seeds the month; afterwards the month
+  // advances only once archived (markMonthDone_), so a failed archive is retried next run.
   let shouldArchive = false;
   let archiveReason = "";
-  
+  const currentMonth = Utilities.formatDate(new Date(), timezone, "yyyy-MM");
+  const markMonthDone_ = () => { if (CONFIG.ENABLE_MONTHLY_ARCHIVE) props.setProperty('lastArchiveMonth', currentMonth); };
+
   if (CONFIG.ENABLE_MONTHLY_ARCHIVE) {
-    const now = new Date();
-    const currentMonth = Utilities.formatDate(now, timezone, "yyyy-MM");
     const lastMonth = props.getProperty('lastArchiveMonth');
-    
-    if (lastMonth && lastMonth !== currentMonth) {
+    if (!lastMonth) {
+      markMonthDone_();
+    } else if (lastMonth !== currentMonth) {
       shouldArchive = true;
       archiveReason = \`Start of new month (\${currentMonth})\`;
     }
-    props.setProperty('lastArchiveMonth', currentMonth);
   }
 
-  // 2. Check for Size Archive
-  if (!shouldArchive && CONFIG.ARCHIVE_THRESHOLD_CHARS > 0 && (force || estimatedChars >= CONFIG.ARCHIVE_THRESHOLD_CHARS)) {
+  if (!shouldArchive && !force && !(threshold > 0)) return { archived: false };
+
+  // 2. Check for Size Archive, on the real doc (the stored estimate drifts and is reset by "Reset Sync State").
+  const docChars = getDocChars_(docId);
+  props.setProperty('estimatedChars', String(docChars));
+  if (!shouldArchive && (force || docChars + (pendingChars || 0) >= threshold)) {
     shouldArchive = true;
-    archiveReason = \`Size limit reached (~\${estimatedChars} chars)\`;
+    archiveReason = \`\${force ? 'Manual archive' : 'Size limit reached'} (~\${docChars} chars)\`;
   }
 
-  if (!shouldArchive) return;
+  if (!shouldArchive) return { archived: false };
+  // ponytail: fixed cutoff; the post-archive marker line is ~130 chars, a synced meeting block is longer.
+  if (docChars < 200) {
+    markMonthDone_();
+    return { archived: false, message: 'Nothing to archive: the master document is empty' };
+  }
 
   console.log(\`📦 Archiving triggered. Reason: \${archiveReason}. Archiving...\`);
 
@@ -816,14 +834,7 @@ function checkAndArchive_(docId, timezone, force) {
     // Mark the archive as synced locally
     props.setProperty('SYNC_' + copy.id, String(Date.now()));
 
-    const metaUrl = \`https://docs.googleapis.com/v1/documents/\${encodeURIComponent(docId)}?fields=body.content.endIndex\`;
-    const metaResp = UrlFetchApp.fetch(metaUrl, {
-      headers: { Authorization: \`Bearer \${ScriptApp.getOAuthToken()}\` },
-    });
-    const metaData = JSON.parse(metaResp.getContentText());
-    const content = metaData.body.content;
-    const endIndex = content[content.length - 1].endIndex - 1;
-
+    const endIndex = docChars;
     const clearRequests = [];
     if (endIndex > 1) {
       clearRequests.push({ deleteContentRange: { range: { startIndex: 1, endIndex } } });
@@ -832,12 +843,13 @@ function checkAndArchive_(docId, timezone, force) {
       insertText: { location: { index: 1 }, text: \`[Meeting Notes Archive — \${dateStr} → \${archiveUrl} ]\\n\\n\` },
     });
     apiCall_(() => Docs.Documents.batchUpdate({ requests: clearRequests }, docId));
+    markMonthDone_();
 
     props.setProperty('estimatedChars', '0');
     var archiveHistory = JSON.parse(props.getProperty('archiveHistory') || '[]');
     archiveHistory.unshift({
       date: new Date().toISOString(),
-      sizeBefore: estimatedChars,
+      sizeBefore: docChars,
       reason: archiveReason
     });
     if (archiveHistory.length > 10) archiveHistory.length = 10;
@@ -860,7 +872,7 @@ function checkAndArchive_(docId, timezone, force) {
     } catch (e) {
       console.error(\`Archive notification failed: \${e.message}\`);
     }
-
+    return { archived: true };
   } catch (e) {
     console.error(\`Archiving failed: \${e.message}\`);
     throw e;
@@ -936,18 +948,23 @@ function logSyncRun_(run) {
       try {
         const props = PropertiesService.getScriptProperties();
         run.docSize = parseInt(props.getProperty('estimatedChars') || '0', 10);
+        // Full counts stay in synced/updated; only the name lists are capped.
+        const capNames = (names) => (names || []).slice(0, 20).map((n) => String(n).slice(0, 80));
+        run.syncedNames = capNames(run.syncedNames);
+        run.updatedNames = capNames(run.updatedNames);
         var parsed = JSON.parse(props.getProperty('syncHistory') || '[]');
         var history = Array.isArray(parsed) ? parsed : [];
         history.unshift(run);
         if (history.length > CONFIG.HISTORY_SIZE) history.length = CONFIG.HISTORY_SIZE;
-        props.setProperty('syncHistory', JSON.stringify(history));
+        props.setProperty('syncHistory', fitPropertyValue_(history, false));
       } catch (e) {
         console.error(\`logSyncRun_ failed: \${e.message}\`);
       }
     });
   } catch (e) {
-    if (e.code !== 'BUSY') throw e;
-    console.warn('[logSyncRun_] could not acquire lock; dropping this entry to avoid race');
+    // Logging must never change a run's outcome.
+    if (e.code === 'BUSY') console.warn('[logSyncRun_] could not acquire lock; dropping this entry to avoid race');
+    else Logger.log('[logSyncRun_] failed: ' + (e && e.message));
   }
 }
 
@@ -999,12 +1016,10 @@ function getFolderIdByName_(name) {
  * Extracts participant names from raw text.
  */
 function extractParticipants_(text) {
-  const match = text.match(/(?:Participants|Attendees|Présents)\\s*:\\s*([^\\n]*)(\\n(?!\\n)[^\\n]+)*/i);
-  if (!match) return null;
+  const block = findParticipantsBlock_(text.replace(/\\r\\n?/g, '\\n'));
+  if (!block) return null;
 
-  const raw = match[0].replace(/(?:Participants|Attendees|Présents)\\s*:\\s*/i, '');
-
-  const entries = raw.split(/[\\n,;]+/)
+  const entries = block.lines.join('\\n').split(/[\\n,;]+/)
     .map(s => s
       .replace(/<[^>]+>/g, '')
       .replace(/\\([^)]*@[^)]*\\)/g, '')
@@ -1017,12 +1032,54 @@ function extractParticipants_(text) {
   return entries.length > 0 ? entries.join(', ') : null;
 }
 
+// A line that starts with the label (optionally indented / wrapped in markdown such as **).
+var PARTICIPANTS_LABEL_RE_ = /^[ \\t]*[*_#]*[ \\t]*(?:Participants|Attendees|Présents)[ \\t]*[*_]*[ \\t]*:[*_]*[ \\t]*(.*)\$/im;
+
+// "Alice", "Jean-Pierre Dupont, Bob <bob@x.com>": every comma/semicolon item is 1-4 capitalised words.
+function isNameList_(s) {
+  var bare = s.replace(/<[^>]*>|\\([^)]*@[^)]*\\)|[\\w.+-]+@[\\w.-]+\\.\\w+/g, '');
+  return /\\p{L}/u.test(bare) && bare.split(/[,;]/).every(function (item) {
+    item = item.trim();
+    return item === '' || /^\\p{Lu}[\\p{L}'’.-]*(?:[ \\t]+\\p{Lu}[\\p{L}'’.-]*){0,3}\$/u.test(item);
+  });
+}
+
+// Does \`line\` continue the attendee list after \`prev\`? When in doubt, no: the line stays in the note.
+function isParticipantContinuation_(line, prev) {
+  var t = line.trim();
+  var bullet = /^[-*•][ \\t]+/.test(t);
+  var body = t.replace(/^[-*•][ \\t]+/, '');
+  if (!body || !isNameList_(body)) return false;
+  return bullet || /[,;:]\$/.test(prev.trim()) || /[,;]/.test(body);
+}
+
+// Locates the participants block in LF-normalised text: { start, end, lines } or null.
+function findParticipantsBlock_(text) {
+  var m = PARTICIPANTS_LABEL_RE_.exec(text);
+  if (!m) return null;
+  var lines = [m[1]];
+  var end = m.index + m[0].length;
+  var prev = m[1] || ':';
+  while (text.charAt(end) === '\\n') {
+    var next = text.indexOf('\\n', end + 1);
+    if (next === -1) next = text.length;
+    var line = text.slice(end + 1, next);
+    if (!isParticipantContinuation_(line, prev)) break;
+    lines.push(line);
+    prev = line;
+    end = next;
+  }
+  return { start: m.index, end: end, lines: lines };
+}
+
 /**
  * Cleans Gemini notes text by removing metadata and simplifying formatting.
  */
 function cleanGeminiText_(text) {
+  text = text.replace(/\\r\\n?/g, '\\n');
+  var block = findParticipantsBlock_(text);
+  if (block) text = text.slice(0, block.start) + text.slice(block.end);
   return text
-    .replace(/(?:Participants|Attendees|Présents)\\s*:.*?(?=\\n\\n|\\n[A-Z]|\$)/is, '')
     .replace(/Notes\\s+(?:par|by|generated by)\\s+Gemini[^\\n]*/gi, '')
     .replace(/^#{1,6}\\s*/gm, '')
     .replace(/\\*\\*(.*?)\\*\\*/g, '\$1')
@@ -1093,12 +1150,24 @@ function appendRunLog_(entry) {
       } catch (_) {}
       existing.push(entry);
       if (existing.length > 50) existing = existing.slice(existing.length - 50);
-      props.setProperty('RUN_LOG', JSON.stringify(existing));
+      props.setProperty('RUN_LOG', fitPropertyValue_(existing, true));
     });
   } catch (e) {
-    if (e.code !== 'BUSY') throw e;
-    console.warn('[appendRunLog_] could not acquire lock; dropping this entry to avoid race');
+    // Logging must never change a run's outcome.
+    if (e.code === 'BUSY') console.warn('[appendRunLog_] could not acquire lock; dropping this entry to avoid race');
+    else Logger.log('[appendRunLog_] failed: ' + (e && e.message));
   }
+}
+
+// PropertiesService rejects values over 9 KB: drop the oldest entries until the JSON is <= 8500 UTF-8 bytes.
+function fitPropertyValue_(arr, oldestFirst) {
+  var json = JSON.stringify(arr);
+  // encodeURIComponent turns each non-ASCII byte into one %XX, so this counts UTF-8 bytes.
+  while (arr.length > 0 && encodeURIComponent(json).replace(/%[0-9A-F]{2}/g, '_').length > 8500) {
+    if (oldestFirst) arr.shift(); else arr.pop();
+    json = JSON.stringify(arr);
+  }
+  return json;
 }
 
 function logRun_(action, fn) {
@@ -1113,8 +1182,8 @@ function logRun_(action, fn) {
       finishedAt: new Date().toISOString(),
       action: action,
       ok: false,
-      error: String(e && e.message || e),
-      errorStack: String(e && e.stack || ''),
+      error: String(e && e.message || e).slice(0, 500),
+      errorStack: String(e && e.stack || '').slice(0, 500),
     });
     throw e;
   }
