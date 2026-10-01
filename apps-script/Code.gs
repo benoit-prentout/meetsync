@@ -93,9 +93,11 @@ function authCacheKey_(accessToken) {
 function validateCaller_(accessToken) {
   if (!accessToken) return false;
   try {
-    var cache = CacheService.getScriptCache();
     var cacheKey = authCacheKey_(accessToken);
-    if (cache.get(cacheKey) === 'ok') return true;
+    // Cache hiccups fall through to tokeninfo instead of failing auth.
+    try {
+      if (CacheService.getScriptCache().get(cacheKey) === 'ok') return true;
+    } catch (e) { Logger.log('validateCaller_: cache read failed: ' + (e && e.message)); }
     var resp = UrlFetchApp.fetch(
       'https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + encodeURIComponent(accessToken),
       { muteHttpExceptions: true }
@@ -122,7 +124,9 @@ function validateCaller_(accessToken) {
     }
 
     if (allowed.indexOf(norm(info.email)) !== -1) {
-      cache.put(cacheKey, 'ok', 300);
+      try {
+        CacheService.getScriptCache().put(cacheKey, 'ok', 300);
+      } catch (e) { Logger.log('validateCaller_: cache write failed: ' + (e && e.message)); }
       return true;
     }
     return false;

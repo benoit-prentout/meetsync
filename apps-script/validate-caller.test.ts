@@ -123,6 +123,19 @@ describe('validateCaller_', () => {
     expect(Object.keys(cache)).toHaveLength(1);
   });
 
+  it('a failing CacheService neither blocks nor grants auth', () => {
+    const boom = () => { throw new Error('Cache unavailable'); };
+    const brokenCache = (info: Record<string, unknown>) => {
+      const fetch = tokenInfo(info);
+      const gs = loadCode({ fetch, session: { effectiveEmail: OWNER }, globals: { CacheService: { getScriptCache: () => ({ get: boom, put: boom }) } } });
+      return { gs, fetch };
+    };
+    const ok = brokenCache({ email: OWNER, email_verified: 'true' });
+    expect(ok.gs.validateCaller_('tok-owner')).toBe(true);
+    expect(ok.fetch).toHaveBeenCalledTimes(1);
+    expect(brokenCache({ email: COLLEAGUE, email_verified: 'true' }).gs.validateCaller_('tok-colleague')).toBe(false);
+  });
+
   it('keys the cache on a digest of the full token, not a prefix or the raw token', () => {
     const prefix = 'p'.repeat(32);
     const cache: Record<string, string> = {};
