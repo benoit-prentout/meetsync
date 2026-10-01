@@ -90,4 +90,4 @@ A1, A2, A4, P2, ext-F1, ext-F2 (narrow token for backend calls), B1, B2 (+ clien
 - History keeps at most 20 names (80 chars each) per run, so name-based counts in Analytics/FileExplorer undercount runs with more than 20 notes.
 - `Dashboard.tsx` has no try/catch around archive, so the new honest "Nothing to archive" error also logs an unhandled rejection.
 - Sign-in now requests only `openid email`; the first "Deploy Update" shows a second consent screen for the `script.*` scopes.
-- New personal-account installs where `Session.getEffectiveUser()` is empty need `OWNER_EMAIL` set by hand in Script Properties.
+- Auth now trusts only the deploying account (`Session.getEffectiveUser()`) plus a manually set `ALLOWED_CALLER_EMAIL` script property (comma-separated). Installs that relied on the old auto-seeded `OWNER_EMAIL` must set it if their Chrome account differs from the deployer.
