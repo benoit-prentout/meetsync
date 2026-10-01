@@ -82,12 +82,18 @@ function isWithinTimeWindow_() {
   return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
 }
 
+// Cache key for a validated token: SHA-256 hex of the full token (never the raw token).
+function authCacheKey_(accessToken) {
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, accessToken);
+  return 'auth_' + bytes.map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); }).join('');
+}
+
 function validateCaller_(accessToken) {
   if (!accessToken) return false;
-  var cache = CacheService.getScriptCache();
-  var cached = cache.get('auth_' + accessToken.slice(0, 32));
-  if (cached === 'ok') return true;
   try {
+    var cache = CacheService.getScriptCache();
+    var cacheKey = authCacheKey_(accessToken);
+    if (cache.get(cacheKey) === 'ok') return true;
     var resp = UrlFetchApp.fetch(
       'https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + encodeURIComponent(accessToken),
       { muteHttpExceptions: true }
@@ -112,7 +118,7 @@ function validateCaller_(accessToken) {
 
     var norm = function (s) { return String(s).trim().toLowerCase(); };
     if (norm(info.email) === norm(owner)) {
-      cache.put('auth_' + accessToken.slice(0, 32), 'ok', 300);
+      cache.put(cacheKey, 'ok', 300);
       return true;
     }
     return false;

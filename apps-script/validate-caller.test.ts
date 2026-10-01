@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 import { loadCode, type FetchStub } from './loadCode';
 
 const OWNER = 'owner@corp.com';
@@ -109,5 +110,21 @@ describe('validateCaller_', () => {
     expect(bad.gs.validateCaller_('tok-colleague')).toBe(false);
     expect(bad.fetch).toHaveBeenCalledTimes(2);
     expect(Object.keys(cache)).toHaveLength(1);
+  });
+
+  it('keys the cache on a digest of the full token, not a prefix or the raw token', () => {
+    const prefix = 'p'.repeat(32);
+    const cache: Record<string, string> = {};
+    const ok = setup({ cache, effective: OWNER });
+    expect(ok.gs.validateCaller_(prefix + '-owner')).toBe(true);
+
+    const key = Object.keys(cache)[0];
+    expect(key).toMatch(/^auth_[0-9a-f]{64}$/);
+    expect(key).not.toContain(prefix);
+    expect(key).toBe('auth_' + createHash('sha256').update(prefix + '-owner').digest('hex'));
+
+    const bad = setup({ cache, info: { email: COLLEAGUE }, effective: OWNER });
+    expect(bad.gs.validateCaller_(prefix + '-other')).toBe(false);
+    expect(bad.fetch).toHaveBeenCalledTimes(1);
   });
 });
