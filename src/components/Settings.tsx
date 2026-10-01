@@ -11,6 +11,7 @@ import { api } from '@/lib/api';
 import { isAppsScriptExecUrl } from '@/lib/deploymentUrl';
 import { EXPECTED_BACKEND_HASH } from '@/lib/backendChecksum';
 import { deployBackendUpdate } from '@/lib/deployApi';
+import { getDeployToken } from '@/lib/auth';
 import { BUNDLED_BACKEND_CODE, BUNDLED_MANIFEST } from '@/lib/bundledBackend';
 
 export function Settings() {
@@ -43,7 +44,9 @@ export function Settings() {
     setDeploying(true);
     setDeployMessage(null);
     try {
-      const result = await deployBackendUpdate(scriptId, deploymentUrl, BUNDLED_BACKEND_CODE, BUNDLED_MANIFEST, accessToken);
+      // accessToken is the narrow backend token; the Apps Script API needs the full-scope one
+      const deployToken = await getDeployToken(true);
+      const result = await deployBackendUpdate(scriptId, deploymentUrl, BUNDLED_BACKEND_CODE, BUNDLED_MANIFEST, deployToken);
       setDeployMessage({ type: 'success', text: `Deployed successfully (version ${result.versionNumber})` });
       setBackendStatus('up-to-date');
     } catch (err) {

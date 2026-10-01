@@ -15,6 +15,10 @@ vi.mock('@/lib/api', () => ({
   api: { getStatus: vi.fn().mockResolvedValue({ success: true }) },
 }));
 
+vi.mock('@/lib/deployApi', () => ({
+  deployBackendUpdate: vi.fn().mockResolvedValue({ versionNumber: 7 }),
+}));
+
 describe('Settings — deployment URL', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -44,5 +48,43 @@ describe('Settings — deployment URL', () => {
     expect(chrome.storage.sync.set).toHaveBeenCalledWith({ deploymentUrl: url });
     expect(useSettingsStore.getState().deploymentUrl).toBe(url);
     expect(screen.queryByText(/must look like/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('Settings — deploy uses the full-scope token', () => {
+  const getAuthToken = chrome.identity.getAuthToken as unknown as ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    chrome.runtime.lastError = undefined;
+    useSettingsStore.setState({
+      deploymentUrl: 'https://script.google.com/macros/s/AKfy/exec',
+      accessToken: 'narrow-token',
+      scriptId: '1PZjo-m8yf49TFg5dk1vbWz2m5l5zeqTH72K4uBrtZKzOlWqOjxvuLQ02',
+      settings: null,
+    });
+    (chrome.storage.sync.get as ReturnType<typeof vi.fn>).mockImplementation(
+      (_keys: unknown, cb: (r: Record<string, unknown>) => void) => cb({}),
+    );
+    getAuthToken.mockImplementation((opts: { scopes?: string[] }, cb: (t?: string) => void) =>
+      cb(opts.scopes ? 'narrow-token' : 'full-token'),
+    );
+    const { api } = await import('@/lib/api');
+    (api.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true, backendIntegrity: 'stale' });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  });
+
+  it('passes the manifest-scope token (not the backend token) to deployBackendUpdate', async () => {
+    const { deployBackendUpdate } = await import('@/lib/deployApi');
+    const { api } = await import('@/lib/api');
+    render(<Settings />);
+    await userEvent.click(await screen.findByRole('button', { name: /deploy update/i }));
+    await screen.findByText(/deployed successfully/i);
+
+    expect(api.getStatus).toHaveBeenCalledWith('narrow-token');
+    const deployCall = getAuthToken.mock.calls.find(([opts]) => !('scopes' in opts));
+    expect(deployCall?.[0]).toEqual({ interactive: true });
+    const args = (deployBackendUpdate as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(args[args.length - 1]).toBe('full-token');
   });
 });

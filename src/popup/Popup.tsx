@@ -6,6 +6,7 @@ import { useApi } from '@/hooks/useApi';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatLastSync } from '@/lib/format';
 import { MeetSyncMark } from '@/components/Brand';
+import { getBackendToken } from '@/lib/auth';
 
 function openDashboardTab() {
   chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
@@ -19,12 +20,9 @@ export function Popup() {
   const { lastSync, docSize, files, history, isLoading, settings, setAuthenticated } = useSettingsStore();
 
   useEffect(() => {
-    chrome.identity.getAuthToken({ interactive: false }, (token) => {
-      if (!chrome.runtime.lastError && token) {
-        setAuthenticated(token);
-      }
-      setAuthChecking(false);
-    });
+    getBackendToken()
+      .then(setAuthenticated, () => {})
+      .finally(() => setAuthChecking(false));
   }, [setAuthenticated]);
 
   if (authChecking) {
