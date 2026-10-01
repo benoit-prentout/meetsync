@@ -1,5 +1,5 @@
 {
-  "name": "meet-gemini-chrome-extension",
+  "name": "meetsync",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
@@ -7,7 +7,7 @@
     "build": "node --import tsx scripts/generate-bundled-files.ts && tsc && vite build",
     "update:checksum": "npx tsx scripts/compute-checksum.ts",
     "preview": "vite preview",
-    "package": "npm run build && cd dist && zip -r ../meet-gemini-notebooklm.zip . && cd ..",
+    "package": "npm run build && cd dist && zip -r ../meetsync.zip . && cd ..",
     "test": "vitest run",
     "test:watch": "vitest"
   },

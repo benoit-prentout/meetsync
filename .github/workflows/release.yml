@@ -22,5 +22,5 @@ jobs:
       - run: npm run package
       - uses: softprops/action-gh-release@v2
         with:
-          files: meet-gemini-notebooklm.zip
+          files: meetsync.zip
           generate_release_notes: true

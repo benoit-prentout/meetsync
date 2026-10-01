@@ -20,7 +20,7 @@ This builds the extension, zips it, and creates a GitHub Release with the zip at
 npm run dev       # Vite dev server at localhost:5173 (chrome APIs mocked via dev-mocks.ts)
 npm run build     # tsc + vite build → dist/
 npm test          # vitest run (jsdom, globals: true)
-npm run package   # build + zip → meet-gemini-notebooklm.zip
+npm run package   # build + zip → meetsync.zip
 npm run test:watch
 npx vitest run -t "test name"   # single test by name
 ```

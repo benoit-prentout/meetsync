@@ -16,7 +16,7 @@ npm run dev                         # Vite dev server at localhost:5173
 npm run build                       # Build extension → dist/
 npm test                            # Run Vitest test suite
 npm run test:watch                  # Watch mode
-npm run package                     # Build + zip → meet-gemini-notebooklm.zip
+npm run package                     # Build + zip → meetsync.zip
 npx vitest run src/lib/api.test.ts  # Run a single test file
 npx vitest run -t "test name"       # Run tests matching a name pattern
 ```

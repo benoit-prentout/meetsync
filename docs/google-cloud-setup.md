@@ -14,7 +14,7 @@ This guide walks you through setting up Google Cloud to enable OAuth for the Chr
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
 2. Click the project selector at the top → **New Project**
-3. Give it a name (e.g., `meet-gemini-notebooklm`) and click **Create**
+3. Give it a name (e.g., `meetsync`) and click **Create**
 4. Make sure the new project is selected before continuing
 
 ---

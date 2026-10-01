@@ -33,7 +33,7 @@ The easiest way to use this tool is to copy the pre-configured template:
 ## Install from Releases
 
 1. Go to the **[Releases page](https://github.com/benoit-prentout/meetsync/releases)**
-2. Download the latest `meet-gemini-notebooklm.zip`
+2. Download the latest `meetsync.zip`
 3. Unzip it somewhere on your machine
 4. Open Chrome to `chrome://extensions`
 5. Enable **Developer mode** (toggle in the top-right corner)
@@ -139,7 +139,7 @@ To have the sync run automatically every 15 minutes:
 npm run dev       # Vite dev server at localhost:5173 (chrome APIs mocked)
 npm run build     # tsc + vite build → dist/
 npm test          # vitest run
-npm run package   # build + zip → meet-gemini-notebooklm.zip
+npm run package   # build + zip → meetsync.zip
 ```
 
 Dev entry points (bypass `chrome-extension://` restrictions):
