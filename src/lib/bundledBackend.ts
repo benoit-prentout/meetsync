@@ -94,9 +94,11 @@ function authCacheKey_(accessToken) {
 function validateCaller_(accessToken) {
   if (!accessToken) return false;
   try {
-    var cache = CacheService.getScriptCache();
     var cacheKey = authCacheKey_(accessToken);
-    if (cache.get(cacheKey) === 'ok') return true;
+    // Cache hiccups fall through to tokeninfo instead of failing auth.
+    try {
+      if (CacheService.getScriptCache().get(cacheKey) === 'ok') return true;
+    } catch (e) { Logger.log('validateCaller_: cache read failed: ' + (e && e.message)); }
     var resp = UrlFetchApp.fetch(
       'https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + encodeURIComponent(accessToken),
       { muteHttpExceptions: true }
@@ -108,20 +110,24 @@ function validateCaller_(accessToken) {
 
     // Web app runs "Execute as: Me" with access "Anyone": getActiveUser() is the
     // CALLER, so only the effective user (the deployer) identifies the owner.
-    // If that is empty (some personal accounts), use a manually set OWNER_EMAIL
-    // script property. Never written here: auto-seeding would let the first
-    // caller take ownership.
-    var owner = '';
-    try { owner = Session.getEffectiveUser().getEmail() || ''; } catch (_) {}
-    if (!owner) owner = PropertiesService.getScriptProperties().getProperty('OWNER_EMAIL') || '';
-    if (!owner) {
-      Logger.log('validateCaller_: owner email unavailable. Set the OWNER_EMAIL script property to your Google account email (Project Settings → Script Properties).');
+    // Extra callers (e.g. a Chrome account other than the deployer, or when the
+    // effective email is empty on some personal accounts) come from the manually
+    // set ALLOWED_CALLER_EMAIL script property (comma-separated). Never written
+    // here, and the old auto-seeded OWNER_EMAIL is not trusted: seeding let the
+    // first caller take ownership.
+    var norm = function (s) { return String(s).trim().toLowerCase(); };
+    var allowed = String(PropertiesService.getScriptProperties().getProperty('ALLOWED_CALLER_EMAIL') || '').split(',');
+    try { allowed.push(Session.getEffectiveUser().getEmail() || ''); } catch (_) {}
+    allowed = allowed.map(norm).filter(Boolean);
+    if (allowed.length === 0) {
+      Logger.log('validateCaller_: owner email unavailable. Set the ALLOWED_CALLER_EMAIL script property to your Google account email (Project Settings → Script Properties).');
       return false;
     }
 
-    var norm = function (s) { return String(s).trim().toLowerCase(); };
-    if (norm(info.email) === norm(owner)) {
-      cache.put(cacheKey, 'ok', 300);
+    if (allowed.indexOf(norm(info.email)) !== -1) {
+      try {
+        CacheService.getScriptCache().put(cacheKey, 'ok', 300);
+      } catch (e) { Logger.log('validateCaller_: cache write failed: ' + (e && e.message)); }
       return true;
     }
     return false;
@@ -210,7 +216,7 @@ function getDiagnostics() {
     diagnostics: {
       scriptIntegrity: SCRIPT_INTEGRITY,
       configOverrides: overrides,
-      ownerEmail: props.getProperty('OWNER_EMAIL') || null,
+      allowedCallerEmail: props.getProperty('ALLOWED_CALLER_EMAIL') || null,
       sessionUserEmpty: !sessionEmail,
       scriptTimezone: Session.getScriptTimeZone(),
       lastError: lastError,
@@ -242,7 +248,8 @@ function getSettings() {
     settings: {
       sourceFolderName: CONFIG.SOURCE_FOLDER_NAME,
       maxFilesPerRun: CONFIG.MAX_FILES_PER_RUN,
-      archiveThresholdChars: CONFIG.ARCHIVE_THRESHOLD_CHARS,
+      // Legacy saves above the current 900000 cap would fail validation on every re-save.
+      archiveThresholdChars: Math.min(CONFIG.ARCHIVE_THRESHOLD_CHARS, 900000),
       enableMonthlyArchive: CONFIG.ENABLE_MONTHLY_ARCHIVE,
       enableUpdateDetection: CONFIG.ENABLE_UPDATE_DETECTION,
       enableNotifications: CONFIG.ENABLE_NOTIFICATIONS,
@@ -435,9 +442,10 @@ function appendMeetNotesToMasterRestAPI(docId) {
   const DOC_MIME = 'application/vnd.google-apps.document';
   const folderId = CONFIG.SOURCE_FOLDER_NAME ? getFolderIdByName_(CONFIG.SOURCE_FOLDER_NAME) : null;
 
-  // Never import the master doc or its archive copies (named by checkAndArchive_).
+  // Never import the master doc or its archive copies (named by checkAndArchive_): skipped in the
+  // loop below, not in the query, since Drive's word-based \`contains\` could drop real notes too.
   const ARCHIVE_PREFIX = 'Meeting Notes Archive';
-  let query = \`mimeType = '\${DOC_MIME}' and trashed = false and not name contains '\${ARCHIVE_PREFIX}'\`;
+  let query = \`mimeType = '\${DOC_MIME}' and trashed = false\`;
   let folderQuery = folderId ? \`'\${folderId}' in parents\` : '';
   let nameQuery = \`(name contains 'Notes de la réunion' or name contains 'Meeting notes' or name contains 'Notes for' or name contains 'Notes by Gemini' or name contains 'Notes par Gemini')\`;
 
@@ -463,6 +471,8 @@ function appendMeetNotesToMasterRestAPI(docId) {
   const toProcess = [];
   const updatedIds = [];
   let found = 0;
+  // One read for all markers; they are only written after the batch insert, so this snapshot stays valid.
+  const allProps = props.getProperties();
 
   // ponytail: pages through all already-synced notes each run; add a modifiedTime cursor if Drive quota bites.
   do {
@@ -477,7 +487,7 @@ function appendMeetNotesToMasterRestAPI(docId) {
       if (CONFIG.EXCLUSION_PATTERNS && isExcluded_(file.name, CONFIG.EXCLUSION_PATTERNS)) {
         continue;
       }
-      const lastSyncTime = props.getProperty('SYNC_' + file.id);
+      const lastSyncTime = allProps['SYNC_' + file.id];
 
       if (!lastSyncTime) {
         toProcess.push(file);
