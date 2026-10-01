@@ -95,28 +95,23 @@ function validateCaller_(accessToken) {
     if (resp.getResponseCode() !== 200) return false;
     var info = JSON.parse(resp.getContentText());
     if (!info.email) return false;
+    if ('email_verified' in info && String(info.email_verified) !== 'true') return false;
 
-    var props = PropertiesService.getScriptProperties();
-    var sessionEmail = '';
-    try { sessionEmail = Session.getActiveUser().getEmail() || ''; } catch (_) {}
-    var storedOwner = props.getProperty('OWNER_EMAIL') || '';
-
-    // First-run seeding: if no OWNER_EMAIL stored yet AND we have a sessionEmail, trust it once.
-    if (!storedOwner && sessionEmail) {
-      props.setProperty('OWNER_EMAIL', sessionEmail);
-      storedOwner = sessionEmail;
-    }
-    // First-run for personal accounts: if no OWNER_EMAIL AND sessionEmail empty,
-    // seed from tokeninfo. This trusts the first caller; acceptable because
-    // deploying as "Execute as: Me" already binds the script to one user.
-    if (!storedOwner && !sessionEmail) {
-      props.setProperty('OWNER_EMAIL', info.email);
-      storedOwner = info.email;
-      console.warn('validateCaller_: seeded OWNER_EMAIL from tokeninfo (personal account fallback): ' + info.email);
+    // Web app runs "Execute as: Me" with access "Anyone": getActiveUser() is the
+    // CALLER, so only the effective user (the deployer) identifies the owner.
+    // If that is empty (some personal accounts), use a manually set OWNER_EMAIL
+    // script property. Never written here: auto-seeding would let the first
+    // caller take ownership.
+    var owner = '';
+    try { owner = Session.getEffectiveUser().getEmail() || ''; } catch (_) {}
+    if (!owner) owner = PropertiesService.getScriptProperties().getProperty('OWNER_EMAIL') || '';
+    if (!owner) {
+      Logger.log('validateCaller_: owner email unavailable. Set the OWNER_EMAIL script property to your Google account email (Project Settings → Script Properties).');
+      return false;
     }
 
-    var ok = info.email === storedOwner || (sessionEmail && info.email === sessionEmail);
-    if (ok) {
+    var norm = function (s) { return String(s).trim().toLowerCase(); };
+    if (norm(info.email) === norm(owner)) {
       cache.put('auth_' + accessToken.slice(0, 32), 'ok', 300);
       return true;
     }
