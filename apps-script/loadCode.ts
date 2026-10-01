@@ -39,6 +39,10 @@ export function loadCode(opts: LoadCodeOptions = {}): Record<string, any> {
         getProperty: (k: string) => (k in props ? props[k] : null),
         setProperty: (k: string, v: string) => { props[k] = String(v); },
         deleteProperty: (k: string) => { delete props[k]; },
+        getProperties: () => ({ ...props }),
+        setProperties: (o: Record<string, string>) => {
+          for (const k in o) props[k] = String(o[k]);
+        },
       }),
     },
     CacheService: {
@@ -78,7 +82,7 @@ export function loadCode(opts: LoadCodeOptions = {}): Record<string, any> {
     },
     ScriptApp: { getOAuthToken: () => 'script-oauth-token' },
     Logger: { log: noop },
-    console: { log: noop, warn: noop, error: noop, info: noop },
+    console: { log: noop, warn: noop, error: noop, info: noop, time: noop, timeEnd: noop },
     ...opts.globals,
   };
 
