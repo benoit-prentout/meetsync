@@ -776,20 +776,21 @@ function checkAndArchive_(docId, timezone, force, pendingChars) {
   const props = PropertiesService.getScriptProperties();
   const threshold = CONFIG.ARCHIVE_THRESHOLD_CHARS;
 
-  // 1. Check for Monthly Archive
+  // 1. Check for Monthly Archive. The first run only seeds the month; afterwards the month
+  // advances only once archived (markMonthDone_), so a failed archive is retried next run.
   let shouldArchive = false;
   let archiveReason = "";
+  const currentMonth = Utilities.formatDate(new Date(), timezone, "yyyy-MM");
+  const markMonthDone_ = () => { if (CONFIG.ENABLE_MONTHLY_ARCHIVE) props.setProperty('lastArchiveMonth', currentMonth); };
 
   if (CONFIG.ENABLE_MONTHLY_ARCHIVE) {
-    const now = new Date();
-    const currentMonth = Utilities.formatDate(now, timezone, "yyyy-MM");
     const lastMonth = props.getProperty('lastArchiveMonth');
-
-    if (lastMonth && lastMonth !== currentMonth) {
+    if (!lastMonth) {
+      markMonthDone_();
+    } else if (lastMonth !== currentMonth) {
       shouldArchive = true;
       archiveReason = `Start of new month (${currentMonth})`;
     }
-    props.setProperty('lastArchiveMonth', currentMonth);
   }
 
   if (!shouldArchive && !force && !(threshold > 0)) return { archived: false };
@@ -804,7 +805,10 @@ function checkAndArchive_(docId, timezone, force, pendingChars) {
 
   if (!shouldArchive) return { archived: false };
   // ponytail: fixed cutoff; the post-archive marker line is ~130 chars, a synced meeting block is longer.
-  if (docChars < 200) return { archived: false, message: 'Nothing to archive: the master document is empty' };
+  if (docChars < 200) {
+    markMonthDone_();
+    return { archived: false, message: 'Nothing to archive: the master document is empty' };
+  }
 
   console.log(`📦 Archiving triggered. Reason: ${archiveReason}. Archiving...`);
 
@@ -838,6 +842,7 @@ function checkAndArchive_(docId, timezone, force, pendingChars) {
       insertText: { location: { index: 1 }, text: `[Meeting Notes Archive — ${dateStr} → ${archiveUrl} ]\n\n` },
     });
     apiCall_(() => Docs.Documents.batchUpdate({ requests: clearRequests }, docId));
+    markMonthDone_();
 
     props.setProperty('estimatedChars', '0');
     var archiveHistory = JSON.parse(props.getProperty('archiveHistory') || '[]');

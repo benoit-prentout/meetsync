@@ -140,3 +140,39 @@ describe('monthly archive during sync with the size threshold disabled (E1c)', (
     expect(s.calls).toEqual(['insert']);
   });
 });
+
+describe('lastArchiveMonth only advances after a successful archive (H1)', () => {
+  const monthly = { ARCHIVE_THRESHOLD_CHARS: 0, ENABLE_MONTHLY_ARCHIVE: true };
+
+  it('a failed monthly archive leaves lastArchiveMonth unchanged and is retried next run', () => {
+    const s = setup({
+      files: [note('a1')],
+      props: { lastArchiveMonth: '2000-01' },
+      config: monthly,
+      copy: () => { throw new Error('Drive copy failed'); },
+    });
+    expect(s.gs.runSync().result.synced).toBe(1); // sync still goes through
+    expect(s.props.lastArchiveMonth).toBe('2000-01');
+    const attempts = s.copy.mock.calls.length;
+
+    s.copy.mockImplementation(() => ({ id: 'archiveCopy01' }));
+    delete s.props.SYNC_a1; // a new note so the next run reaches the archive check
+    s.gs.runSync();
+    expect(s.copy.mock.calls.length).toBe(attempts + 1);
+    expect(s.props.lastArchiveMonth).toBe(thisMonth());
+  });
+
+  it('first run seeds the current month without archiving', () => {
+    const s = setup({ files: [note('a1')], config: monthly });
+    s.gs.runSync();
+    expect(s.copy).not.toHaveBeenCalled();
+    expect(s.props.lastArchiveMonth).toBe(thisMonth());
+  });
+
+  it('a new month with an empty doc counts as done', () => {
+    const s = setup({ docChars: 0, files: [note('a1')], props: { lastArchiveMonth: '2000-01' }, config: monthly });
+    s.gs.runSync();
+    expect(s.copy).not.toHaveBeenCalled();
+    expect(s.props.lastArchiveMonth).toBe(thisMonth());
+  });
+});
