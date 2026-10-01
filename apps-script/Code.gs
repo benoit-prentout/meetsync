@@ -441,9 +441,10 @@ function appendMeetNotesToMasterRestAPI(docId) {
   const DOC_MIME = 'application/vnd.google-apps.document';
   const folderId = CONFIG.SOURCE_FOLDER_NAME ? getFolderIdByName_(CONFIG.SOURCE_FOLDER_NAME) : null;
 
-  // Never import the master doc or its archive copies (named by checkAndArchive_).
+  // Never import the master doc or its archive copies (named by checkAndArchive_): skipped in the
+  // loop below, not in the query, since Drive's word-based `contains` could drop real notes too.
   const ARCHIVE_PREFIX = 'Meeting Notes Archive';
-  let query = `mimeType = '${DOC_MIME}' and trashed = false and not name contains '${ARCHIVE_PREFIX}'`;
+  let query = `mimeType = '${DOC_MIME}' and trashed = false`;
   let folderQuery = folderId ? `'${folderId}' in parents` : '';
   let nameQuery = `(name contains 'Notes de la réunion' or name contains 'Meeting notes' or name contains 'Notes for' or name contains 'Notes by Gemini' or name contains 'Notes par Gemini')`;
 

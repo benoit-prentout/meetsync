@@ -153,10 +153,11 @@ describe('sync markers (B1)', () => {
 });
 
 describe('master and archive docs are never imported (D1)', () => {
-  it('excludes archives in the Drive query', () => {
-    const s = setup({ files: [] });
-    s.gs.runSync();
-    expect(s.sourceQuery()).toContain("not name contains 'Meeting Notes Archive'");
+  it('leaves archive exclusion to the in-loop check, not the Drive query', () => {
+    // Drive's multi-word `contains` could also drop real notes such as 'Archive review – Meeting notes'.
+    const s = setup({ files: [note('a1', { name: 'Archive review – Meeting notes' })] });
+    expect(s.gs.runSync().result.synced).toBe(1);
+    expect(s.sourceQuery()).not.toContain('Meeting Notes Archive');
   });
 
   it('skips the master doc and archive copies even if Drive returns them', () => {
