@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Github, RefreshCw } from 'lucide-react';
+import { GitBranch, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApi } from '@/hooks/useApi';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -150,7 +150,7 @@ export function Popup() {
           onClick={() => chrome.tabs.create({ url: 'https://github.com/benoit-prentout/meetsync' })}
           className="text-[9px] text-slate-400 hover:text-slate-600 transition-colors cursor-pointer flex items-center gap-1"
         >
-          <Github className="w-2.5 h-2.5" />
+          <GitBranch className="w-2.5 h-2.5" />
           Star
         </button>
         <button onClick={signOut} className="text-[9px] text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">

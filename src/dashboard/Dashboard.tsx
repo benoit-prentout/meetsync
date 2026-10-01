@@ -8,7 +8,7 @@ import {
   Settings as SettingsIcon,
   ExternalLink,
   HelpCircle,
-  Github,
+  GitBranch,
 } from 'lucide-react';
 import { History } from '@/components/History';
 import { Analytics } from '@/components/Analytics';
@@ -129,7 +129,7 @@ export function Dashboard({ onSignOut }: { onSignOut?: () => void }) {
               onClick={() => chrome.tabs.create({ url: 'https://github.com/benoit-prentout/meetsync' })}
               className="flex items-center gap-1.5 text-[10px] text-slate-400 hover:text-slate-600 transition-colors cursor-pointer w-full"
             >
-              <Github className="w-3 h-3" />
+              <GitBranch className="w-3 h-3" />
               Star on GitHub
             </button>
             <p className="text-[9px] text-slate-400 mt-1 leading-relaxed">
