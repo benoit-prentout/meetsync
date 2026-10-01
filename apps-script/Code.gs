@@ -998,12 +998,10 @@ function getFolderIdByName_(name) {
  * Extracts participant names from raw text.
  */
 function extractParticipants_(text) {
-  const match = text.match(/(?:Participants|Attendees|Présents)\s*:\s*([^\n]*)(\n(?!\n)[^\n]+)*/i);
-  if (!match) return null;
+  const block = findParticipantsBlock_(text.replace(/\r\n?/g, '\n'));
+  if (!block) return null;
 
-  const raw = match[0].replace(/(?:Participants|Attendees|Présents)\s*:\s*/i, '');
-
-  const entries = raw.split(/[\n,;]+/)
+  const entries = block.lines.join('\n').split(/[\n,;]+/)
     .map(s => s
       .replace(/<[^>]+>/g, '')
       .replace(/\([^)]*@[^)]*\)/g, '')

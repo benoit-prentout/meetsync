@@ -88,3 +88,28 @@ describe('cleanGeminiText participants stripping (C1)', () => {
     expect(cleanGeminiText(crlf)).toBe('Summary\nWe decided X');
   });
 });
+
+describe('extractParticipants (C2)', () => {
+  const extract = (text: string): string | null => gs.extractParticipants_(text);
+
+  it('stops at the first non-list line when there is no blank line', () => {
+    expect(extract('Participants: A\nSummary\nWe decided X')).toBe('A');
+  });
+
+  it('does not leak the note body for CRLF text', () => {
+    expect(extract('Title\r\nParticipants: Alice, Bob\r\nSummary\r\nWe decided X\r\nNext steps')).toBe('Alice, Bob');
+  });
+
+  it('captures a comma-separated list wrapped over several lines', () => {
+    expect(extract('Participants: Alice Martin, Bob,\nCarol, Dave\n\nSummary')).toBe('Alice Martin, Bob, Carol, Dave');
+  });
+
+  it('captures a bullet list and strips emails', () => {
+    expect(extract('**Attendees:**\r\n- Alice <alice@x.com>\r\n* Bob (bob@x.com)\r\n• Élodie Durand\r\nSummary')).toBe('Alice, Bob, Élodie Durand');
+  });
+
+  it('ignores a mid-sentence label and returns null without one', () => {
+    expect(extract('We asked participants: what blocks you?')).toBeNull();
+    expect(extract('No attendee line here')).toBeNull();
+  });
+});
