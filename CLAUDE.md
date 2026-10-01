@@ -70,8 +70,8 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 
 | Function | Purpose |
 |---|---|
-| `appendMeetNotesToMaster()` | Main sync: discovers, filters, cleans, and batch-inserts meeting notes |
-| `checkAndArchive_(docId, tz, force)` | Triggers monthly or at ~800k chars; `force=true` skips threshold check |
+| `appendMeetNotesToMaster()` | Thin menu "Sync Now" / 15-min trigger wrapper around `runSync()`, which runs the REST sync (`appendMeetNotesToMasterRestAPI`: discovers, filters, cleans, and batch-inserts meeting notes) |
+| `checkAndArchive_(docId, tz, force, pendingChars)` | Archives monthly, or when the real doc size + pending batch reaches `ARCHIVE_THRESHOLD_CHARS`; `force=true` archives regardless of the threshold (even 0). Returns `{archived, message?}`; a near-empty doc is "Nothing to archive" |
 | `cleanGeminiText_()` | Strips Gemini metadata, markdown headers/bold, and excess whitespace |
 | `CONFIG` (top of file) | Controls `MAX_FILES_PER_RUN`, `ARCHIVE_THRESHOLD_CHARS`, `ENABLE_MONTHLY_ARCHIVE`, `MAX_AGE_DAYS` |
 
@@ -114,6 +114,7 @@ npm test   # runs vitest (jsdom, globals: true)
 - `tsconfig.json` excludes test files from tsc build — required to avoid "Cannot find name 'vi'" errors.
 - `src/test/setup.ts` mocks `chrome.storage.sync`, `chrome.identity`, `chrome.runtime`, `chrome.tabs`.
 - `vi` must be imported explicitly in setup.ts (`import { vi } from 'vitest'`) even with `globals: true`.
+- Backend tests run the REAL `apps-script/Code.gs` via `loadCode()` in `apps-script/loadCode.ts` (node:vm sandbox with stubbed PropertiesService, CacheService, Session, UrlFetchApp, Utilities, LockService). Pass Drive/Docs/DocumentApp/MailApp etc. through its `globals` option; its property store enforces the 9 KB per-value limit like Apps Script.
 
 ## Known Gotchas
 
