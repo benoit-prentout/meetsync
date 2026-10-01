@@ -410,7 +410,9 @@ function appendMeetNotesToMasterRestAPI(docId) {
 
   const folderId = getFolderIdByName_(CONFIG.SOURCE_FOLDER_NAME);
 
-  let query = `mimeType = 'application/vnd.google-apps.document' and trashed = false`;
+  // Never import the master doc or its archive copies (named by checkAndArchive_).
+  const ARCHIVE_PREFIX = 'Meeting Notes Archive';
+  let query = `mimeType = 'application/vnd.google-apps.document' and trashed = false and not name contains '${ARCHIVE_PREFIX}'`;
   let folderQuery = folderId ? `'${folderId}' in parents` : '';
   let nameQuery = `(name contains 'Notes de la réunion' or name contains 'Meeting notes' or name contains 'Notes for' or name contains 'Notes by Gemini' or name contains 'Notes par Gemini')`;
 
@@ -442,6 +444,7 @@ function appendMeetNotesToMasterRestAPI(docId) {
   const updatedIds = [];
 
   for (const file of result.files) {
+    if (file.id === docId || file.name.indexOf(ARCHIVE_PREFIX) === 0) continue;
     if (CONFIG.SOURCE_FILE_NAME_PATTERN && !matchesPattern_(file.name, CONFIG.SOURCE_FILE_NAME_PATTERN)) {
       continue;
     }

@@ -147,3 +147,24 @@ describe('sync markers (B1)', () => {
     expect(s.props.SYNC_a1).toBe(String(T));
   });
 });
+
+describe('master and archive docs are never imported (D1)', () => {
+  it('excludes archives in the Drive query', () => {
+    const s = setup({ files: [] });
+    s.gs.runSync();
+    expect(s.sourceQuery()).toContain("not name contains 'Meeting Notes Archive'");
+  });
+
+  it('skips the master doc and archive copies even if Drive returns them', () => {
+    const s = setup({
+      files: [
+        note('a1'),
+        note(DOC, { name: 'Meeting notes master' }),
+        note('arch1', { name: 'Meeting Notes Archive — 2026-09-01 — 10h00' }),
+      ],
+    });
+    expect(s.gs.runSync().result).toMatchObject({ synced: 1, errors: 0 });
+    expect(s.exported).toEqual(['a1']);
+    expect(s.syncMarkers()).toEqual(['SYNC_a1']);
+  });
+});
