@@ -8,6 +8,7 @@ export type ApiErrorCode =
   | 'VALIDATION_FAILED' // backend returned {success:false, error:'VALIDATION_FAILED'}
   | 'SERVER'          // HTTP 5xx
   | 'BACKEND'         // {success:false} with an arbitrary error string
+  | 'INVALID_DEPLOYMENT_URL' // stored URL is not an Apps Script /exec URL; request never sent
   | 'UNKNOWN';
 
 export function mapStatusToCode(status: number | undefined, payload: unknown): ApiErrorCode {

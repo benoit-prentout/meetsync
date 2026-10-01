@@ -8,6 +8,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useApi } from '@/hooks/useApi';
 import { extractDocId, extractFolderId } from '@/lib/googleIds';
 import { api } from '@/lib/api';
+import { isAppsScriptExecUrl } from '@/lib/deploymentUrl';
 import { EXPECTED_BACKEND_HASH } from '@/lib/backendChecksum';
 import { deployBackendUpdate } from '@/lib/deployApi';
 import { BUNDLED_BACKEND_CODE, BUNDLED_MANIFEST } from '@/lib/bundledBackend';
@@ -21,6 +22,7 @@ export function Settings() {
   const [autoSyncEnabled, setAutoSyncEnabledState] = useState(false);
   const [autoSyncInterval, setAutoSyncIntervalState] = useState(60);
   const [deploymentUrlInput, setDeploymentUrlInput] = useState('');
+  const [deploymentUrlError, setDeploymentUrlError] = useState<string | null>(null);
   const [scriptIdInput, setScriptIdInput] = useState('');
   const [docIdError, setDocIdError] = useState<string | null>(null);
   const [folderIdError, setFolderIdError] = useState<string | null>(null);
@@ -131,6 +133,11 @@ export function Settings() {
   const handleSaveDeploymentUrl = () => {
     const trimmed = deploymentUrlInput.trim();
     if (!trimmed) return;
+    if (!isAppsScriptExecUrl(trimmed)) {
+      setDeploymentUrlError('URL must look like https://script.google.com/macros/s/<id>/exec');
+      return;
+    }
+    setDeploymentUrlError(null);
     chrome.storage.sync.set({ deploymentUrl: trimmed });
     setDeploymentUrl(trimmed);
     getSettings().catch(() => {});
@@ -148,7 +155,10 @@ export function Settings() {
             <Input
               id="deploymentUrl"
               value={deploymentUrlInput}
-              onChange={(e) => setDeploymentUrlInput(e.target.value)}
+              onChange={(e) => {
+                setDeploymentUrlInput(e.target.value);
+                if (deploymentUrlError) setDeploymentUrlError(null);
+              }}
               placeholder="https://script.google.com/macros/s/…/exec"
             />
             <Button
@@ -161,6 +171,9 @@ export function Settings() {
               Update
             </Button>
           </div>
+          {deploymentUrlError && (
+            <p className="text-[10px] text-red-500">{deploymentUrlError}</p>
+          )}
           {deploymentUrl && deploymentUrlInput.trim() === deploymentUrl && (
             <p className="text-[10px] text-slate-400 truncate">{deploymentUrl}</p>
           )}

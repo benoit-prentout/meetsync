@@ -75,6 +75,22 @@ describe('api - getDeploymentUrl / fetchApi', () => {
     await expect(api2.getStatus('test-token')).rejects.toThrow('Invalid deployment URL');
   });
 
+  it.each([
+    'https://evil.example/macros/s/x/exec',
+    'https://script.google.com.evil.example/macros/s/x/exec',
+    'http://script.google.com/macros/s/x/exec',
+    'https://script.google.com/home/projects/x/edit',
+  ])('rejects non-Apps-Script deployment URL %s without sending the token', async (deploymentUrl) => {
+    (chrome.storage.sync.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ deploymentUrl });
+    globalThis.fetch = vi.fn();
+    const { ApiError, api } = await import('@/lib/api');
+    const err = await api.getStatus('secret-token').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as InstanceType<typeof ApiError>).code).toBe('INVALID_DEPLOYMENT_URL');
+    expect((err as Error).message).toMatch(/Invalid deployment URL/);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('throws ApiError when the HTTP response is not ok', async () => {
     (chrome.storage.sync.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       deploymentUrl: 'https://script.google.com/macros/s/test/exec',

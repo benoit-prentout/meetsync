@@ -3,6 +3,7 @@ import { GithubIcon } from '@/components/ui/GithubIcon';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettingsStore } from '@/store/settingsStore';
 import { api } from '@/lib/api';
+import { isAppsScriptExecUrl } from '@/lib/deploymentUrl';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MeetSyncMark } from '@/components/Brand';
@@ -20,8 +21,8 @@ export function SetupWizard() {
   function validateUrl(value: string): string | null {
     const trimmed = value.trim();
     if (!trimmed) return 'Deployment URL is required';
-    if (!trimmed.startsWith('https://script.google.com/')) {
-      return 'URL must start with https://script.google.com/';
+    if (!isAppsScriptExecUrl(trimmed)) {
+      return 'URL must start with https://script.google.com/ and look like …/macros/s/<id>/exec';
     }
     return null;
   }

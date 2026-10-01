@@ -1,5 +1,6 @@
 import type { ApiResponse, StatusResponse, Settings, SyncEvent, SyncFile } from '@/types';
 import { mapStatusToCode, type ApiErrorCode } from './apiErrorCode';
+import { isAppsScriptExecUrl } from './deploymentUrl';
 
 export class ApiError extends Error {
   constructor(
@@ -28,12 +29,15 @@ async function fetchApi<T>(
   accessToken?: string
 ): Promise<T> {
   const base = await getDeploymentUrl();
-  let url: URL;
-  try {
-    url = new URL(base);
-  } catch {
-    throw new ApiError('Invalid deployment URL. Please check your setup settings.', undefined, 'BACKEND');
+  // Security: never send the token anywhere but an Apps Script web app URL.
+  if (!isAppsScriptExecUrl(base)) {
+    throw new ApiError(
+      'Invalid deployment URL. It must look like https://script.google.com/macros/s/<id>/exec — please check your setup settings.',
+      undefined,
+      'INVALID_DEPLOYMENT_URL',
+    );
   }
+  const url = new URL(base);
   url.searchParams.set('action', endpoint);
   // Apps Script web apps strip Authorization headers; token must be a query param
   if (accessToken) {

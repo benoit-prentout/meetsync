@@ -108,7 +108,7 @@ function WizardPreview() {
       <SetupWizard key={key} />
 
       <p className="text-[10px] text-slate-400">
-        Enter any <code>https://script.google.com/...</code> URL to enable the button
+        Enter any <code>https://script.google.com/macros/s/&lt;id&gt;/exec</code> URL to enable the button
       </p>
     </div>
   );
