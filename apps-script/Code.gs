@@ -299,6 +299,9 @@ function validateSettings_(settings) {
   ['sourceFolderName','archiveFolderId','masterDocId','sourceFileNamePattern','exclusionPatterns'].forEach(function(k){
     if (k in settings && !isStr(settings[k])) push(k, 'must be string');
   });
+  ['archiveFolderId','masterDocId'].forEach(function(k){
+    if (isStr(settings[k]) && settings[k] !== '' && !/^[A-Za-z0-9_-]{10,}$/.test(settings[k])) push(k, 'must be a Drive ID (letters, digits, _ or -, 10+ chars)');
+  });
   ['syncWindowStart','syncWindowEnd'].forEach(function(k){
     if (k in settings && !isHHMM(settings[k])) push(k, 'must be HH:MM (24h)');
   });
@@ -919,7 +922,7 @@ function checkAndArchive_(docId, timezone, force) {
     // Mark the archive as synced locally
     props.setProperty('SYNC_' + copy.id, String(Date.now()));
 
-    const metaUrl = `https://docs.googleapis.com/v1/documents/${docId}?fields=body.content.endIndex`;
+    const metaUrl = `https://docs.googleapis.com/v1/documents/${encodeURIComponent(docId)}?fields=body.content.endIndex`;
     const metaResp = UrlFetchApp.fetch(metaUrl, {
       headers: { Authorization: `Bearer ${ScriptApp.getOAuthToken()}` },
     });

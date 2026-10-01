@@ -63,6 +63,13 @@ export function loadCode(opts: LoadCodeOptions = {}): Record<string, any> {
       DigestAlgorithm: { SHA_256: 'sha256' },
       computeDigest: (alg: string, value: string) => signedBytes(createHash(alg).update(value, 'utf8').digest()),
       sleep: noop,
+      // ponytail: UTC only, yyyy/MM/dd/HH/mm tokens; override via `globals` if a test needs real time zones.
+      formatDate: (d: Date, _tz: string, fmt: string) => {
+        const p = (n: number) => String(n).padStart(2, '0');
+        return fmt.replace(/'([^']*)'/g, '$1').replace('yyyy', String(d.getUTCFullYear()))
+          .replace('MM', p(d.getUTCMonth() + 1)).replace('dd', p(d.getUTCDate()))
+          .replace('HH', p(d.getUTCHours())).replace('mm', p(d.getUTCMinutes()));
+      },
     },
     LockService: { getScriptLock: () => ({ tryLock: () => true, waitLock: noop, releaseLock: noop }) },
     ContentService: {
