@@ -55,7 +55,7 @@ const CONFIG = {
   } catch (_) {}
   })();
 
-var SCRIPT_INTEGRITY = 'c3beafb40f9ea1c53be90da889b372016b38f24ccb6a2854d8d377b4afe2a1b9';
+var SCRIPT_INTEGRITY = 'd4bcbdf572faeba50ce20f4d7fd9852673d309984cc08f52cdc3531b019ae45e';
 
 function matchesPattern_(name, pattern) {
   if (!pattern) return true;

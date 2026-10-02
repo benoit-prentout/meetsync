@@ -12,6 +12,12 @@ import { api, ApiError } from './lib/api';
       set: (_items: object, cb?: () => void) => { cb?.(); },
       remove: (_keys: string | string[], cb?: () => void) => { cb?.(); },
     },
+    // No-op draft storage, so remounting via the scenario picker still resets the form
+    local: {
+      get: () => Promise.resolve({}),
+      set: () => Promise.resolve(),
+      remove: () => Promise.resolve(),
+    },
   },
   identity: {
     getAuthToken: (_opts: object, cb: (token: string) => void) => cb('fake-dev-token'),

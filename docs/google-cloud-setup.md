@@ -52,7 +52,9 @@ Before creating OAuth credentials, you need the Chrome extension's ID:
 3. Click **Load unpacked** and select the `dist/` folder (build first with `npm run build`)
 4. Copy the **Extension ID** shown under the extension name (looks like `abcdefghijklmnopqrstuvwxyzabcdef`)
 
-> The ID is derived from your OAuth client ID, so it will remain stable once you link the two below. If you haven't built yet, you can get a preliminary ID and update the OAuth client later.
+> The ID is fixed by the `key` field in `public/manifest.json`, so it is always `mbbmbndohpgkigldmbpbilfcimbpkkje` no matter which folder you load the extension from. The **Item ID** in the OAuth client (step 5) must be exactly that value. You can skip loading the extension here and use the ID above directly.
+>
+> If the extension is ever published to the Chrome Web Store, the store will likely assign its own ID, so the `key`, the OAuth client's Item ID, and this guide would need revisiting at that point.
 
 ---
 
