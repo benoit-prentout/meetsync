@@ -26,7 +26,7 @@ Load `dist/` as unpacked extension in Chrome (chrome://extensions → Developer 
 ## Deployment
 
 ### Apps Script
-1. Edit `apps-script/Code.gs`.
+1. Edit `apps-script/Code.gs`, then run `npm run update:checksum` (a test fails if the `SCRIPT_INTEGRITY` hash is stale; Settings uses it to show "update available").
 2. Copy full contents into the Apps Script editor bound to a Google Doc.
 3. Deploy as web app: **Execute as: Me**, **Who has access: Anyone**.
 4. Copy the deployment URL — user enters it in the extension's setup wizard.
