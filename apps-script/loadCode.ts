@@ -73,6 +73,8 @@ export function loadCode(opts: LoadCodeOptions = {}): Record<string, any> {
       DigestAlgorithm: { SHA_256: 'sha256' },
       computeDigest: (alg: string, value: string) => signedBytes(createHash(alg).update(value, 'utf8').digest()),
       sleep: noop,
+      // Apps Script returns padded web-safe base64 (+ → -, / → _).
+      base64EncodeWebSafe: (s: string) => Buffer.from(s, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_'),
       // ponytail: UTC only, yyyy/MM/dd/HH/mm tokens; override via `globals` if a test needs real time zones.
       formatDate: (d: Date, _tz: string, fmt: string) => {
         const p = (n: number) => String(n).padStart(2, '0');

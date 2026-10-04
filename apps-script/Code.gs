@@ -55,7 +55,7 @@ const CONFIG = {
   } catch (_) {}
   })();
 
-var SCRIPT_INTEGRITY = 'd4bcbdf572faeba50ce20f4d7fd9852673d309984cc08f52cdc3531b019ae45e';
+var SCRIPT_INTEGRITY = '3270271ddd710784c412fffa1d8204d40002bc9095247df9cee037e48fd77d74';
 
 function matchesPattern_(name, pattern) {
   if (!pattern) return true;
@@ -602,6 +602,7 @@ function onOpen() {
     const ui = DocumentApp.getUi();
     ui.createMenu('🚀 NotebookLM')
       .addItem('❓ Start Here / Help', 'showHelp')
+      .addItem('🔌 Connect extension', 'showConnectionCode')
       .addSeparator()
       .addItem('🔄 Sync Now', 'appendMeetNotesToMaster')
       .addItem('⏰ Enable Auto-Sync (Every 15m)', 'setupTrigger')
@@ -705,7 +706,7 @@ function showHelp() {
         <div style="margin-bottom: 0;"><b>🧹 Reset:</b> Clear the sync database to re-import all meetings from scratch.</div>
       </div>
 
-      <p style="font-size: 0.9em;"><b>Pro Tip:</b> Add this document to a <a href="https://notebooklm.google.com" target="_blank">NotebookLM</a> notebook and remember to <b>Refresh</b> the source after syncing!</p>
+      <p style="font-size: 0.9em;"><b>Pro Tip:</b> Add this document to a <a href="https://notebook.google.com" target="_blank">Gemini Notebook</a> (formerly NotebookLM) as a Google Drive source. It stays up to date on its own. When an archive is created, add that file as a source too.</p>
       
       <div style="text-align: center; margin: 10px 0;">
         <a href="https://github.com/benoit-prentout/meetsync" target="_blank" style="color: #70757a; text-decoration: none; font-size: 0.8em; border-bottom: 1px solid #70757a;">View on GitHub</a>
@@ -720,6 +721,59 @@ function showHelp() {
     .setWidth(450)
     .setHeight(400);
   DocumentApp.getUi().showModelessDialog(userInterface, ' ');
+}
+
+// ─── EXTENSION CONNECTION ─────────────────────────────────────────────────────
+
+var EXEC_URL_RE_ = /^https:\/\/script\.google\.com\/(a\/macros\/[A-Za-z0-9.-]+|macros)\/s\/[A-Za-z0-9_-]+\/exec$/;
+
+/**
+ * Builds the one-paste code for the Chrome extension's setup wizard:
+ * web-safe base64 of {v:1,url,scriptId}. Decoded by src/lib/connectionCode.ts.
+ * Public (no trailing underscore) so the dialog can call it via google.script.run.
+ */
+function makeConnectionCode(url) {
+  url = String(url || '').trim();
+  if (!EXEC_URL_RE_.test(url)) {
+    throw new Error('Paste the web app URL from Deploy → Manage deployments (it ends in /exec).');
+  }
+  return Utilities.base64EncodeWebSafe(JSON.stringify({ v: 1, url: url, scriptId: ScriptApp.getScriptId() }));
+}
+
+/**
+ * Menu "Connect extension": shows the code. The URL field is prefilled when the web app is
+ * deployed and detectable; otherwise the user pastes the /exec URL from "Manage deployments".
+ */
+function showConnectionCode() {
+  let url = '';
+  try { url = ScriptApp.getService().getUrl() || ''; } catch (e) { /* not deployed yet */ }
+  if (!EXEC_URL_RE_.test(url)) url = '';
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 15px; color: #3c4043; line-height: 1.5;">
+      <p style="margin-top: 0;">1. Deploy this script as a web app: <b>Deploy → New deployment → Web app</b>, <b>Execute as: Me</b>, <b>Who has access: Anyone</b>.</p>
+      <p>2. Web app URL (ends in <code>/exec</code>):</p>
+      <input id="url" value="${url}" placeholder="https://script.google.com/macros/s/…/exec" style="width: 100%; box-sizing: border-box; padding: 6px;">
+      <button onclick="gen()" style="margin: 8px 0;">Generate code</button>
+      <p id="err" style="color: #d93025; margin: 0;"></p>
+      <p>3. Paste this code into the extension's setup wizard:</p>
+      <textarea id="code" readonly rows="4" style="width: 100%; box-sizing: border-box; font-family: monospace; font-size: 11px;"></textarea>
+      <button onclick="copyCode()">Copy</button>
+    </div>
+    <script>
+      function gen() {
+        document.getElementById('err').textContent = '';
+        document.getElementById('code').value = '';
+        google.script.run
+          .withSuccessHandler(function (c) { document.getElementById('code').value = c; })
+          .withFailureHandler(function (e) { document.getElementById('err').textContent = e.message; })
+          .makeConnectionCode(document.getElementById('url').value);
+      }
+      function copyCode() { var t = document.getElementById('code'); t.select(); document.execCommand('copy'); }
+      if (document.getElementById('url').value) gen();
+    </script>
+  `;
+  const output = HtmlService.createHtmlOutput(html).setWidth(460).setHeight(340);
+  DocumentApp.getUi().showModalDialog(output, 'Connect the MeetSync extension');
 }
 
 // ─── MAIN SYNC LOGIC ──────────────────────────────────────────────────────────
