@@ -55,7 +55,7 @@ const CONFIG = {
   } catch (_) {}
   })();
 
-var SCRIPT_INTEGRITY = 'c85b079b36c8597f7162db1f51fa9b0840aeeef56a2f4d419f75de28504b5c05';
+var SCRIPT_INTEGRITY = '3270271ddd710784c412fffa1d8204d40002bc9095247df9cee037e48fd77d74';
 
 function matchesPattern_(name, pattern) {
   if (!pattern) return true;
@@ -725,7 +725,7 @@ function showHelp() {
 
 // ─── EXTENSION CONNECTION ─────────────────────────────────────────────────────
 
-var EXEC_URL_RE_ = /^https:\/\/script\.google\.com\/(a\/macros\/[^\/]+|macros)\/s\/[A-Za-z0-9_-]+\/exec$/;
+var EXEC_URL_RE_ = /^https:\/\/script\.google\.com\/(a\/macros\/[A-Za-z0-9.-]+|macros)\/s\/[A-Za-z0-9_-]+\/exec$/;
 
 /**
  * Builds the one-paste code for the Chrome extension's setup wizard:
@@ -762,6 +762,7 @@ function showConnectionCode() {
     <script>
       function gen() {
         document.getElementById('err').textContent = '';
+        document.getElementById('code').value = '';
         google.script.run
           .withSuccessHandler(function (c) { document.getElementById('code').value = c; })
           .withFailureHandler(function (e) { document.getElementById('err').textContent = e.message; })

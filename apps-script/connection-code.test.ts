@@ -35,6 +35,12 @@ describe('makeConnectionCode', () => {
     expect(decodeConnectionCode(gs.makeConnectionCode(`  ${EXEC}\n`))).toEqual({ url: EXEC, scriptId: SID });
   });
 
+  it('accepts a Workspace URL and round-trips it through the decoder', () => {
+    const { gs } = load();
+    const url = 'https://script.google.com/a/macros/example.com/s/AKfycbx/exec';
+    expect(decodeConnectionCode(gs.makeConnectionCode(url))).toEqual({ url, scriptId: SID });
+  });
+
   it.each([
     ['empty', ''],
     ['http', 'http://script.google.com/macros/s/x/exec'],
@@ -42,6 +48,7 @@ describe('makeConnectionCode', () => {
     ['look-alike host', 'https://script.google.com.evil.example/macros/s/x/exec'],
     ['dev url', 'https://script.google.com/macros/s/x/dev'],
     ['editor url', 'https://script.google.com/home/projects/abc/edit'],
+    ['quote in workspace domain', 'https://script.google.com/a/macros/x"><img src=x>/s/AKfy/exec'],
   ])('rejects %s', (_label, url) => {
     const { gs } = load();
     expect(() => gs.makeConnectionCode(url)).toThrow(/ends in \/exec/);
@@ -54,6 +61,12 @@ describe('showConnectionCode', () => {
     gs.showConnectionCode();
     expect(shown).toHaveLength(1);
     expect(shown[0].html).toContain(`value="${EXEC}"`);
+  });
+
+  it('clears a stale code before regenerating', () => {
+    const { gs, shown } = load();
+    gs.showConnectionCode();
+    expect(shown[0].html).toMatch(/getElementById\('err'\)\.textContent = '';\s*document\.getElementById\('code'\)\.value = '';/);
   });
 
   it.each([
