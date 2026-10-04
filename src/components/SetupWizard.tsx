@@ -211,7 +211,7 @@ export function SetupWizard() {
           )}
           <button
             onClick={handleSave}
-            disabled={phase !== 'idle' || !!urlError || !url}
+            disabled={phase !== 'idle' || !!urlError || !!codeError || !url}
             className="w-full bg-[#1a73e8] hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-md transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
             {phase === 'verifying' ? 'Verifying…' : phase === 'connecting' ? 'Connecting…' : 'Save & Connect'}

@@ -259,6 +259,14 @@ describe('SetupWizard', () => {
       expect(screen.getByRole('button', { name: /save & connect/i })).toBeEnabled();
     });
 
+    it('an invalid code after a valid one disables the button', async () => {
+      render(<SetupWizard />);
+      await pasteCode(makeCode({ v: 1, url: VALID_URL, scriptId: VALID_SID }));
+      await pasteCode('garbage'); // appends, so the combined value is invalid
+      expect(screen.getByText(/connection code is not valid/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /save & connect/i })).toBeDisabled();
+    });
+
     it('saves what the code contained', async () => {
       render(<SetupWizard />);
       await pasteCode(makeCode({ v: 1, url: VALID_URL, scriptId: VALID_SID }));
