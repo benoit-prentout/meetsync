@@ -1,4 +1,6 @@
-# Google Cloud Console Setup
+# Google Cloud Console Setup (advanced: bring your own OAuth client)
+
+> **Most users do not need this guide.** The release build of MeetSync ships a shared Google sign-in client. Follow this guide only if you fork MeetSync or build it from source with your own OAuth client.
 
 This guide walks you through setting up Google Cloud to enable OAuth for the Chrome extension. The extension only needs identity-level OAuth (`openid email`) — all Drive and Docs operations run server-side inside your Apps Script web app, so you do **not** need to enable Drive, Docs, or Apps Script APIs here.
 
@@ -101,7 +103,7 @@ The extension communicates with your Apps Script backend via a web app URL. To d
 4. Configure the deployment:
    - **Description**: e.g., `Meet Gemini API v1`
    - **Execute as**: **Me** (the script runs with your Drive/Docs permissions)
-   - **Who has access**: **Anyone with a Google account** (the extension validates the caller's identity via token)
+   - **Who has access**: **Anyone** (the extension validates the caller's identity via token)
 5. Click **Deploy** and authorize when prompted
 6. Copy the **Web App URL** (format: `https://script.google.com/macros/s/AKfycb.../exec`)
 
@@ -111,8 +113,8 @@ The extension communicates with your Apps Script backend via a web app URL. To d
 
 ## Step 8: Configure the Extension
 
-1. Click the extension icon in Chrome — the Setup wizard opens on first run
-2. Paste your **Web App URL** into the deployment URL field
+1. Click the extension icon in Chrome. The Setup wizard opens on first run.
+2. In your Google Doc, open **🚀 NotebookLM → 🔌 Connect extension**, copy the code and paste it into the wizard (or enter the Web App URL manually under "Or enter the URL and script ID manually").
 3. Click **Save** — the extension stores the URL in `chrome.storage.sync`
 
 You're all set. Run a sync from the dashboard to verify everything is connected.
@@ -126,7 +128,7 @@ You're all set. Run a sync from the dashboard to verify everything is connected.
 - After updating `public/manifest.json`, rebuild and reload the extension
 
 ### "Invalid token" errors from the web app
-- Check that the Apps Script is deployed with **Execute as: Me** and **Anyone with a Google account** access
+- Check that the Apps Script is deployed with **Execute as: Me** and **Anyone** access
 - Make sure you redeployed after any script changes (each deploy gets a new URL)
 
 ### Extension not loading

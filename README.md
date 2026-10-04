@@ -3,18 +3,28 @@
 
 # MeetSync
 
-Automatically consolidate all your **Google Meet notes** into a single **Master Google Doc** — a living, unlimited knowledge base for NotebookLM or any other AI tool.
+Automatically consolidate all your **Google Meet notes** into a single **Master Google Doc** — a living, unlimited knowledge base for Gemini Notebook (formerly NotebookLM) or any other AI tool.
 
 ---
 
-## 🚀 Quick Start (One-Click Install)
+## 🚀 Quick Start
 
-The easiest way to use this tool is to copy the pre-configured template:
+### Path 1: the sync only (2 minutes, nothing to install)
 
-1. **[Click here to Make a Copy of the Template](https://docs.google.com/document/d/1ptU9lzwjX2LfBi_IVZeT00YCLrkmm5D25KmqeqEwB_o/copy)**
-2. In your new document, refresh the page.
-3. A new **🚀 NotebookLM** menu will appear.
-4. Run **🔄 Sync Now** and follow the authorization prompts.
+1. **[Click here to make a copy of the template](https://docs.google.com/document/d/1ptU9lzwjX2LfBi_IVZeT00YCLrkmm5D25KmqeqEwB_o/copy)**
+2. In your new document, refresh the page. A **🚀 NotebookLM** menu appears.
+3. Run **🔄 Sync Now** and follow the authorization prompts. Google shows an "unverified app" screen because the script is your own copy: click **Advanced → Go to … (unsafe)**.
+4. Run **⏰ Enable Auto-Sync**. New meeting notes are added every 15 minutes.
+5. In [Gemini Notebook](https://notebook.google.com) (formerly NotebookLM), add the doc as a Google Drive source. It stays up to date on its own.
+
+### Path 2: add the dashboard (Chrome extension)
+
+The extension adds a popup and dashboard: sync status, history, files, analytics and settings. Do Path 1 first, then:
+
+1. In your doc, open **Extensions → Apps Script → Deploy → New deployment → Web app**. Set **Execute as: Me** and **Who has access: Anyone**, then deploy.
+2. Download `meetsync.zip` from the **[Releases page](https://github.com/benoit-prentout/meetsync/releases)**, unzip it, open `chrome://extensions`, enable **Developer mode**, click **Load unpacked** and pick the unzipped folder.
+3. In your doc, open **🚀 NotebookLM → 🔌 Connect extension** and copy the code.
+4. Open the extension and paste the code in the setup wizard. Then enter your Master Doc ID and Archive Folder ID in **Settings**.
 
 > ### 🔧 Recreating the template (if the link above ever breaks)
 >
@@ -32,25 +42,15 @@ The easiest way to use this tool is to copy the pre-configured template:
 
 ## Install from Releases
 
-1. Go to the **[Releases page](https://github.com/benoit-prentout/meetsync/releases)**
-2. Download the latest `meetsync.zip`
-3. Unzip it somewhere on your machine
-4. Open Chrome to `chrome://extensions`
-5. Enable **Developer mode** (toggle in the top-right corner)
-6. Click **Load unpacked** and select the unzipped folder
-7. Complete the setup wizard with your deployment URL and script project ID
+See **Path 2** above. The release build ships a shared Google sign-in client, so there is nothing to create in Google Cloud. If you fork MeetSync or build from source with your own client, follow [Google Cloud Setup](docs/google-cloud-setup.md) (advanced).
 
-### First-time setup (one per user)
-
-1. **Create OAuth credentials** — follow [Google Cloud Setup](docs/google-cloud-setup.md). Use Item ID `mbbmbndohpgkigldmbpbilfcimbpkkje` (fixed by the manifest `key`, the same wherever you unzip the extension).
-2. **Deploy the Apps Script backend** — copy `apps-script/Code.gs` into an Apps Script project bound to your master Google Doc, enable Drive + Docs APIs, and deploy as a web app. Or use the **Deploy Backend** button in extension Settings for auto-deploy.
-3. **Enter your deployment URL** and **script project ID** in the extension's setup wizard.
+To update the backend later, use **Deploy Backend** in the extension's Settings. Google shows an "unverified app" screen the first time: click **Advanced → Go to MeetSync (unsafe)**. This is expected, the extension is not verified by Google. If you prefer, paste the new `apps-script/Code.gs` into the Apps Script editor by hand and redeploy.
 
 ---
 
 ## 🏗 Why this tool?
 
-NotebookLM limits its sources to 50. By grouping months of meetings into a single document, you enable any AI tool to make long-term connections without ever hitting source limits.
+Gemini Notebook (formerly NotebookLM) caps sources per notebook (50 on the free plan, up to 600 on Ultra) and Meet creates one doc per meeting. By grouping months of meetings into a single clean document, you stay far below the cap and any AI tool can make long-term connections.
 
 ### ✨ Features
 
@@ -85,7 +85,7 @@ NotebookLM limits its sources to 50. By grouping months of meetings into a singl
 ### 2️⃣ Copy the Code
 Choose one:
 
-**Option A — Auto-Deploy (recommended)**: Complete the Chrome extension Setup wizard, then in Settings click **Deploy Backend**. The extension pushes the code via the Apps Script API — no manual copy-paste needed.
+**Option A — Auto-Deploy (to update an existing script)**: Complete the Chrome extension Setup wizard and enter your Script Project ID, then in Settings click **Deploy Backend**. The extension pushes the code via the Apps Script API. Google shows an "unverified app" screen the first time (**Advanced → Go to MeetSync (unsafe)**).
 
 **Option B — Manual copy**:
 1. Delete everything in the script editor.
@@ -123,13 +123,13 @@ To have the sync run automatically every 15 minutes:
 
 ---
 
-## 🧠 Connecting to NotebookLM
+## 🧠 Connecting to Gemini Notebook (formerly NotebookLM)
 
-1. Go to [NotebookLM](https://notebooklm.google.com).
-2. Create a new Notebook.
-3. Add your **Master Google Doc** as a source.
-4. **Important**: Every time you use NotebookLM, click the **Refresh** button next to the Google Doc source so it picks up the latest meetings.
-5. **Archives**: When an archive is created, don't forget to add the archive file as a source in NotebookLM to keep your full history!
+1. Go to [Gemini Notebook](https://notebook.google.com).
+2. Create a new notebook.
+3. Add your **Master Google Doc** as a **Google Drive** source.
+4. That's it: since May 2026, Docs sources sync from Drive automatically. To force an update, open the source and click **Click to sync with Google Drive**.
+5. **Archives**: when an archive is created, add the archive file as a source too, so your full history stays available. The archive email contains the link.
 
 ---
 

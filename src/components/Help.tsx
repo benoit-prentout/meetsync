@@ -46,7 +46,7 @@ export function Help() {
       <Section title="Getting Started">
         <div className="space-y-3">
           <Step n={1}>
-            Create (or open) a Google Doc that will serve as your <strong>Master Document</strong> — this is where all meeting notes get appended. Copy its ID from the URL:{' '}
+            Make a copy of the <strong>MeetSync template doc</strong> (link in the GitHub README). Refresh it, open <strong>🚀 NotebookLM → 🔄 Sync Now</strong> once and authorize. This doc is your <strong>Master Document</strong>; copy its ID from the URL:{' '}
             <code className="bg-slate-100 px-1 rounded-sm text-[10px]">docs.google.com/document/d/<strong>[ID]</strong>/edit</code>
           </Step>
           <Step n={2}>
@@ -54,11 +54,10 @@ export function Help() {
             <code className="bg-slate-100 px-1 rounded-sm text-[10px]">drive.google.com/drive/folders/<strong>[ID]</strong></code>
           </Step>
           <Step n={3}>
-            Deploy the <strong>Apps Script backend</strong>: open script.google.com, paste <code className="bg-slate-100 px-1 rounded-sm text-[10px]">Code.gs</code>, deploy as a web app (<em>Execute as: Me</em>, <em>Who has access: Anyone</em>). Copy the deployment URL AND note the Script Project ID from the editor URL:{' '}
-            <code className="bg-slate-100 px-1 rounded-sm text-[10px]">script.google.com/home/projects/<strong>[SCRIPT_ID]</strong>/edit</code>
+            In the doc, open <strong>Extensions → Apps Script → Deploy → New deployment → Web app</strong> (<em>Execute as: Me</em>, <em>Who has access: Anyone</em>), then open <strong>🚀 NotebookLM → 🔌 Connect extension</strong> and copy the connection code.
           </Step>
           <Step n={4}>
-            Open the extension popup and complete the <strong>Setup Wizard</strong>: sign in, paste your deployment URL AND Script Project ID, click <strong>Save &amp; Connect</strong>. The wizard verifies the backend connection before completing.
+            Open the extension popup and complete the <strong>Setup Wizard</strong>: paste the connection code, click <strong>Save &amp; Connect</strong>. The wizard verifies the backend connection before completing.
           </Step>
           <Step n={5}>
             Go to{' '}
@@ -224,6 +223,9 @@ export function Help() {
           <p className="mt-2">
             One-click deploy uses the Apps Script API to upload code, create a new version, and update the deployment — the same as re-deploying from the script editor, but instant.
           </p>
+          <p className="mt-2">
+            The first time, Google shows an <strong>"unverified app"</strong> screen: click <strong>Advanced → Go to MeetSync (unsafe)</strong>. This is expected, the extension is not verified by Google.
+          </p>
         </div>
       </Section>
 
@@ -239,12 +241,12 @@ export function Help() {
             Google Apps Script — manage your backend deployment
           </a>
           <a
-            href="https://notebooklm.google.com"
-            onClick={(e) => { e.preventDefault(); chrome.tabs.create({ url: 'https://notebooklm.google.com' }); }}
+            href="https://notebook.google.com"
+            onClick={(e) => { e.preventDefault(); chrome.tabs.create({ url: 'https://notebook.google.com' }); }}
             className="flex items-center gap-2 text-xs text-[#1a73e8] hover:underline"
           >
             <ExternalLink className="w-3 h-3" />
-            NotebookLM — add your master doc as a source
+            Gemini Notebook (formerly NotebookLM) — add your master doc as a source
           </a>
           <a
             href="https://github.com/benoit-prentout/meetsync"
