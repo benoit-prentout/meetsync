@@ -28,6 +28,9 @@ vi.mock('@/store/settingsStore', () => ({
 const VALID_URL = 'https://script.google.com/macros/s/test/exec';
 const VALID_SID = '1PZjo-m8yf49TFg5dk1vbWz2m5l5zeqTH72K4uBrtZKzOlWqOjxvuLQ02';
 
+// Same encoding as Code.gs makeConnectionCode(): web-safe base64 of the JSON.
+const makeCode = (obj: unknown) => btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_');
+
 describe('SetupWizard', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -234,6 +237,82 @@ describe('SetupWizard', () => {
     await waitFor(() => {
       expect(screen.getByText(/Could not reach the deployment URL/i)).toBeInTheDocument();
       expect(chrome.storage.sync.remove).toHaveBeenCalledWith(['deploymentUrl', 'scriptId']);
+    });
+  });
+
+  describe('connection code', () => {
+    async function pasteCode(code: string) {
+      await userEvent.click(screen.getByLabelText(/connection code/i));
+      await userEvent.paste(code);
+    }
+
+    it('renders the connection code field', () => {
+      render(<SetupWizard />);
+      expect(screen.getByLabelText(/connection code/i)).toBeInTheDocument();
+    });
+
+    it('a valid code fills the URL and script ID and enables the button', async () => {
+      render(<SetupWizard />);
+      await pasteCode(makeCode({ v: 1, url: VALID_URL, scriptId: VALID_SID }));
+      expect(screen.getByLabelText(/apps script deployment url/i)).toHaveValue(VALID_URL);
+      expect(screen.getByLabelText(/script project id/i)).toHaveValue(VALID_SID);
+      expect(screen.getByRole('button', { name: /save & connect/i })).toBeEnabled();
+    });
+
+    it('saves what the code contained', async () => {
+      render(<SetupWizard />);
+      await pasteCode(makeCode({ v: 1, url: VALID_URL, scriptId: VALID_SID }));
+      await userEvent.click(screen.getByRole('button', { name: /save & connect/i }));
+      await waitFor(() => {
+        expect(chrome.storage.sync.set).toHaveBeenCalledWith(
+          { deploymentUrl: VALID_URL, scriptId: VALID_SID },
+          expect.any(Function)
+        );
+      });
+    });
+
+    it('an invalid code shows an error and keeps the button disabled', async () => {
+      render(<SetupWizard />);
+      await pasteCode('definitely not a code');
+      expect(screen.getByText(/connection code is not valid/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /save & connect/i })).toBeDisabled();
+    });
+
+    it('clearing the code clears the error', async () => {
+      render(<SetupWizard />);
+      await pasteCode('definitely not a code');
+      await userEvent.clear(screen.getByLabelText(/connection code/i));
+      expect(screen.queryByText(/connection code is not valid/i)).not.toBeInTheDocument();
+    });
+
+    it('stores a code-supplied URL in the draft', async () => {
+      render(<SetupWizard />);
+      await pasteCode(makeCode({ v: 1, url: VALID_URL, scriptId: VALID_SID }));
+      await waitFor(() => {
+        expect(localStore.setupWizardDraft).toEqual({ url: VALID_URL, scriptId: VALID_SID });
+      });
+    });
+  });
+
+  describe('script ID is optional', () => {
+    it('connects with only a URL and stores no scriptId', async () => {
+      render(<SetupWizard />);
+      await userEvent.type(screen.getByLabelText(/apps script deployment url/i), VALID_URL);
+      const button = screen.getByRole('button', { name: /save & connect/i });
+      expect(button).toBeEnabled();
+      await userEvent.click(button);
+      await waitFor(() => {
+        expect(chrome.storage.sync.set).toHaveBeenCalledWith({ deploymentUrl: VALID_URL }, expect.any(Function));
+      });
+    });
+
+    it('still rejects a script ID that looks too short', async () => {
+      render(<SetupWizard />);
+      await userEvent.type(screen.getByLabelText(/apps script deployment url/i), VALID_URL);
+      await userEvent.type(screen.getByLabelText(/script project id/i), 'abc');
+      await userEvent.click(screen.getByRole('button', { name: /save & connect/i }));
+      expect(screen.getByText(/script project id looks too short/i)).toBeInTheDocument();
+      expect(chrome.storage.sync.set).not.toHaveBeenCalled();
     });
   });
 });
