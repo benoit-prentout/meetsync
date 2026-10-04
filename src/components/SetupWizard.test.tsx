@@ -267,6 +267,15 @@ describe('SetupWizard', () => {
       expect(screen.getByRole('button', { name: /save & connect/i })).toBeDisabled();
     });
 
+    it('typing a URL manually after an invalid code re-enables Save', async () => {
+      render(<SetupWizard />);
+      await pasteCode('definitely not a code');
+      expect(screen.getByText(/connection code is not valid/i)).toBeInTheDocument();
+      await userEvent.type(screen.getByLabelText(/apps script deployment url/i), VALID_URL);
+      expect(screen.queryByText(/connection code is not valid/i)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /save & connect/i })).toBeEnabled();
+    });
+
     it('saves what the code contained', async () => {
       render(<SetupWizard />);
       await pasteCode(makeCode({ v: 1, url: VALID_URL, scriptId: VALID_SID }));

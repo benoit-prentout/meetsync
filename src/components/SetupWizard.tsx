@@ -67,6 +67,7 @@ export function SetupWizard() {
     const value = e.target.value;
     setUrl(value);
     setUrlError(validateUrl(value));
+    setCodeError(null);
     saveDraft({ url: value, scriptId: scriptIdValue });
   }
 
@@ -74,6 +75,7 @@ export function SetupWizard() {
     const value = e.target.value;
     setScriptIdValue(value);
     setScriptIdError(validateScriptId(value));
+    setCodeError(null);
     saveDraft({ url, scriptId: value });
   }
 
