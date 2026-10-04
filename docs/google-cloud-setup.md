@@ -115,7 +115,7 @@ The extension communicates with your Apps Script backend via a web app URL. To d
 
 1. Click the extension icon in Chrome. The Setup wizard opens on first run.
 2. In your Google Doc, open **🚀 NotebookLM → 🔌 Connect extension**, copy the code and paste it into the wizard (or enter the Web App URL manually under "Or enter the URL and script ID manually").
-3. Click **Save** — the extension stores the URL in `chrome.storage.sync`
+3. Click **Save & Connect** — the extension verifies the backend and stores the URL in `chrome.storage.sync`
 
 You're all set. Run a sync from the dashboard to verify everything is connected.
 

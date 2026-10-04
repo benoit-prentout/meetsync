@@ -24,7 +24,7 @@ The extension adds a popup and dashboard: sync status, history, files, analytics
 1. In your doc, open **Extensions → Apps Script → Deploy → New deployment → Web app**. Set **Execute as: Me** and **Who has access: Anyone**, then deploy.
 2. Download `meetsync.zip` from the **[Releases page](https://github.com/benoit-prentout/meetsync/releases)**, unzip it, open `chrome://extensions`, enable **Developer mode**, click **Load unpacked** and pick the unzipped folder.
 3. In your doc, open **🚀 NotebookLM → 🔌 Connect extension** and copy the code.
-4. Open the extension and paste the code in the setup wizard. Then enter your Master Doc ID and Archive Folder ID in **Settings**.
+4. Open the extension and paste the code in the setup wizard. Then enter your Master Document ID and Archive Folder ID in **Settings**.
 
 > ### 🔧 Recreating the template (if the link above ever breaks)
 >
@@ -44,7 +44,7 @@ The extension adds a popup and dashboard: sync status, history, files, analytics
 
 See **Path 2** above. The release build ships a shared Google sign-in client, so there is nothing to create in Google Cloud. If you fork MeetSync or build from source with your own client, follow [Google Cloud Setup](docs/google-cloud-setup.md) (advanced).
 
-To update the backend later, use **Deploy Backend** in the extension's Settings. Google shows an "unverified app" screen the first time: click **Advanced → Go to MeetSync (unsafe)**. This is expected, the extension is not verified by Google. If you prefer, paste the new `apps-script/Code.gs` into the Apps Script editor by hand and redeploy.
+To update the backend later, open the extension's **Settings**; when Backend Status shows "Update available", click **Deploy Update**. Google shows an "unverified app" screen the first time: click **Advanced → Go to MeetSync (unsafe)**. This is expected, the extension is not verified by Google. If you prefer, paste the new `apps-script/Code.gs` into the Apps Script editor by hand and redeploy.
 
 ---
 
@@ -85,7 +85,7 @@ Gemini Notebook (formerly NotebookLM) caps sources per notebook (50 on the free 
 ### 2️⃣ Copy the Code
 Choose one:
 
-**Option A — Auto-Deploy (to update an existing script)**: Complete the Chrome extension Setup wizard and enter your Script Project ID, then in Settings click **Deploy Backend**. The extension pushes the code via the Apps Script API. Google shows an "unverified app" screen the first time (**Advanced → Go to MeetSync (unsafe)**).
+**Option A — Auto-Deploy (to update an existing script)**: Complete the Chrome extension Setup wizard and enter your Script Project ID, then in Settings, when Backend Status shows "Update available", click **Deploy Update**. The extension pushes the code via the Apps Script API. Google shows an "unverified app" screen the first time (**Advanced → Go to MeetSync (unsafe)**).
 
 **Option B — Manual copy**:
 1. Delete everything in the script editor.

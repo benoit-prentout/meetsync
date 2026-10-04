@@ -58,7 +58,7 @@ export function SetupWizard() {
 
   function validateScriptId(value: string): string | null {
     const trimmed = value.trim();
-    // Optional: only "Deploy Backend" in Settings needs it.
+    // Optional: only "Deploy Update" in Settings needs it.
     if (trimmed && trimmed.length < 20) return 'Script project ID looks too short';
     return null;
   }
@@ -193,7 +193,7 @@ export function SetupWizard() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="script-id">Script Project ID (optional)</Label>
-            <p className="text-[11px] text-slate-400">Only needed for Deploy Backend in Settings. Found in the Apps Script editor URL, after <code className="text-slate-500">/home/projects/</code>.</p>
+            <p className="text-[11px] text-slate-400">Only needed for Deploy Update in Settings. Found in the Apps Script editor URL, after <code className="text-slate-500">/home/projects/</code>.</p>
             <Input
               id="script-id"
               placeholder="1PZjo-m8yf49TFg5dk1vbWz2m5l5zeqTH72K4uBrtZKzOlWqOjxvuLQ02"
@@ -222,7 +222,7 @@ export function SetupWizard() {
               href="#"
               onClick={(e) => {
                 e.preventDefault();
-                chrome.tabs.create({ url: 'https://github.com/benoit-prentout/meetsync/blob/main/docs/google-cloud-setup.md' });
+                chrome.tabs.create({ url: 'https://github.com/benoit-prentout/meetsync#-quick-start' });
               }}
               className="underline hover:text-slate-600 transition-colors"
             >
