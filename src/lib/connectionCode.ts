@@ -15,7 +15,7 @@ export function decodeConnectionCode(input: string): ConnectionCode | null {
     if (data?.v !== 1 || typeof data.url !== 'string') return null;
     if (!isAppsScriptExecUrl(data.url) || !new URL(data.url).pathname.endsWith('/exec')) return null;
     const { scriptId } = data;
-    if (scriptId !== undefined && (typeof scriptId !== 'string' || scriptId.length < 20)) return null;
+    if (scriptId !== undefined && (typeof scriptId !== 'string' || !/^[A-Za-z0-9_-]{20,}$/.test(scriptId))) return null;
     return { url: data.url, scriptId };
   } catch {
     return null;

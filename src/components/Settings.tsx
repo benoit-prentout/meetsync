@@ -36,7 +36,7 @@ export function Settings() {
   const handleDeploy = async () => {
     if (!deploymentUrl || !accessToken) return;
     if (!scriptId) {
-      setDeployMessage({ type: 'error', text: 'Script project ID is required — set it in the Apps Script Deployment section below.' });
+      setDeployMessage({ type: 'error', text: 'Script project ID is required — set it in the Apps Script Deployment section above.' });
       return;
     }
     if (!window.confirm('This will replace the currently deployed backend code with the version bundled in this extension. Continue?')) return;

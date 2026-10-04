@@ -26,6 +26,11 @@ describe('decodeConnectionCode', () => {
     expect(decodeConnectionCode(encode({ v: 1, url: URL }))).toEqual({ url: URL, scriptId: undefined });
   });
 
+  it('accepts a script ID with hyphens and underscores', () => {
+    const sid = 'Ab-_Cd0123456789Ab-_Cd01';
+    expect(decodeConnectionCode(encode({ v: 1, url: URL, scriptId: sid }))).toEqual({ url: URL, scriptId: sid });
+  });
+
   it.each([
     ['empty string', ''],
     ['garbage', 'not a code at all!!'],
@@ -41,6 +46,8 @@ describe('decodeConnectionCode', () => {
     ['dev url', encode({ v: 1, url: 'https://script.google.com/macros/s/x/dev', scriptId: SID })],
     ['scriptId too short', encode({ v: 1, url: URL, scriptId: 'abc' })],
     ['scriptId not a string', encode({ v: 1, url: URL, scriptId: 7 })],
+    ['scriptId with path characters', encode({ v: 1, url: URL, scriptId: '../../projects/xxxxxxxxxxxxxxxx' })],
+    ['scriptId with spaces', encode({ v: 1, url: URL, scriptId: 'a'.repeat(19) + ' b' })],
   ])('rejects %s', (_label, code) => {
     expect(decodeConnectionCode(code)).toBeNull();
   });
